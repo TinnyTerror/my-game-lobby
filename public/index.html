@@ -1,55 +1,165 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Multiplayer Game</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f4f4; }
-        .container { background: white; max-width: 500px; margin: 0 auto; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        button { background: #555; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; }
-        input { padding: 10px; width: 60%; margin-bottom: 10px; }
-        .hidden { display: none; }
-        li { padding: 10px; border-bottom: 1px solid #eee; list-style: none; display: flex; justify-content: space-between; }
+        /* General Styles to make it look like an App */
+        body, html { margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; height: 100%; background: #f0f2f5; }
+        .screen { display: none; height: 100%; padding: 20px; box-sizing: border-box; flex-direction: column; align-items: center; }
+        
+        /* This class makes a screen visible */
+        .active { display: flex; }
+
+        /* Card Styling */
+        .card { background: white; width: 100%; max-width: 400px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; }
+        
+        /* Buttons & Inputs */
+        button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+        .btn-primary { background: #0070f3; color: white; }
+        .btn-primary:hover { background: #0056b3; }
+        .btn-danger { background: #ff4d4f; color: white; }
+        .btn-danger:hover { background: #d9363e; }
+        
+        input { width: 90%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 10px; font-size: 16px; }
+
+        /* Lists */
+        ul { list-style: none; padding: 0; width: 100%; text-align: left; }
+        li { background: #f9f9f9; border-bottom: 1px solid #eee; padding: 10px; display: flex; justify-content: space-between; align-items: center; }
+        li:first-child { border-top-left-radius: 8px; border-top-right-radius: 8px; }
+        li:last-child { border-bottom: none; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; }
+        
+        .status-badge { background: #e6f7ff; color: #0070f3; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div id="lobby">
-            <h2>🎲 Game Center</h2>
-            <input type="text" id="gName" placeholder="Game Name">
-            <button onclick="socket.emit('hostGame', document.getElementById('gName').value)">Host Game</button>
-            <ul id="gList"></ul>
+
+    <div id="lobbyScreen" class="screen active">
+        <h1>🎮 Game Hub</h1>
+        
+        <div class="card">
+            <h3>Host a Match</h3>
+            <input type="text" id="gameName" placeholder="Enter Room Name (e.g. Table 1)">
+            <button class="btn-primary" onclick="hostGame()">Create Room</button>
         </div>
 
-        <div id="room" class="hidden">
-            <h2 id="rTitle"></h2>
-            <p>Room Code: <b id="rId"></b></p>
-            <h3>Players Joined:</h3>
-            <ul id="pList"></ul>
+        <br>
+
+        <div class="card">
+            <h3>Available Rooms</h3>
+            <ul id="gameList">
+                <p style="color: #888; font-size: 14px;">Searching for games...</p>
+            </ul>
+        </div>
+    </div>
+
+    <div id="roomScreen" class="screen">
+        <div class="card">
+            <h2 id="roomTitle">Waiting Room</h2>
+            <div class="status-badge">Room Code: <span id="roomCode">---</span></div>
+            
+            <br>
+            <h3>Players Joined</h3>
+            <ul id="playerList">
+                </ul>
+            
+            <p id="waitingMsg" style="color: #666; margin-top: 20px;">Waiting for host to start...</p>
+            
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+            
+            <button class="btn-danger" onclick="leaveGame()">Exit Room</button>
         </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
+        let currentRoomId = null;
+
+        // --- BUTTON ACTIONS ---
+
+        function hostGame() {
+            const name = document.getElementById('gameName').value;
+            if(!name) return alert("Please name your game!");
+            socket.emit('hostGame', name);
+        }
+
+        function joinGame(id) {
+            socket.emit('joinGame', id);
+        }
+
+        function leaveGame() {
+            if(currentRoomId) {
+                socket.emit('leaveGame', currentRoomId);
+            }
+        }
+
+        // --- NAVIGATION HELPERS ---
         
+        function showScreen(screenName) {
+            // Hide all screens
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            // Show the requested one
+            document.getElementById(screenName).classList.add('active');
+        }
+
+        // --- SOCKET EVENTS ---
+
+        // 1. Update Lobby List
         socket.on('updateGameList', (games) => {
-            const list = document.getElementById('gList');
+            const list = document.getElementById('gameList');
             list.innerHTML = '';
-            Object.values(games).forEach(g => {
-                list.innerHTML += `<li>${g.name} <button onclick="socket.emit('joinGame', '${g.id}')">Join</button></li>`;
+            
+            const gameArray = Object.values(games);
+            if(gameArray.length === 0) {
+                list.innerHTML = '<p style="color: #888; font-size: 14px;">No active games found.</p>';
+                return;
+            }
+
+            gameArray.forEach(game => {
+                list.innerHTML += `
+                    <li>
+                        <span><b>${game.name}</b> <small>(${game.players.length}/2)</small></span>
+                        <button onclick="joinGame('${game.id}')" style="width: auto; padding: 5px 10px; margin: 0; font-size: 12px;">Join</button>
+                    </li>
+                `;
             });
         });
 
-        socket.on('joinedRoom', (r) => {
-            document.getElementById('lobby').classList.add('hidden');
-            document.getElementById('room').classList.remove('hidden');
-            document.getElementById('rTitle').innerText = r.name;
-            document.getElementById('rId').innerText = r.id;
-            updatePlayers(r.players);
+        // 2. You Joined/Hosted a Room -> Go to Waiting Screen
+        socket.on('joinedRoom', (room) => {
+            currentRoomId = room.id;
+            document.getElementById('roomTitle').innerText = room.name;
+            document.getElementById('roomCode').innerText = room.id;
+            updatePlayerList(room.players);
+            showScreen('roomScreen');
         });
 
-        socket.on('playerUpdate', updatePlayers);
-        function updatePlayers(p) { 
-            document.getElementById('pList').innerHTML = p.map(x => `<li>Player ${x}</li>`).join(''); 
+        // 3. Someone else joined/left your room -> Update List
+        socket.on('playerUpdate', (players) => {
+            updatePlayerList(players);
+        });
+
+        // 4. You Left the Room -> Go back to Lobby
+        socket.on('backToLobby', () => {
+            currentRoomId = null;
+            showScreen('lobbyScreen');
+        });
+
+        function updatePlayerList(players) {
+            const pList = document.getElementById('playerList');
+            pList.innerHTML = players.map(p => `<li>👤 Player ${p}</li>`).join('');
+            
+            // Optional: Update status message
+            const msg = document.getElementById('waitingMsg');
+            if(players.length >= 2) {
+                msg.innerText = "Ready to start!";
+                msg.style.color = "green";
+                msg.style.fontWeight = "bold";
+            } else {
+                msg.innerText = "Waiting for players...";
+                msg.style.color = "#666";
+            }
         }
     </script>
 </body>
