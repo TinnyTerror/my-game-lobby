@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f4f4; }
+        .container { background: white; max-width: 500px; margin: 0 auto; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        button { background: #555; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; }
+        input { padding: 10px; width: 60%; margin-bottom: 10px; }
+        .hidden { display: none; }
+        li { padding: 10px; border-bottom: 1px solid #eee; list-style: none; display: flex; justify-content: space-between; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="lobby">
+            <h2>🎲 Game Center</h2>
+            <input type="text" id="gName" placeholder="Game Name">
+            <button onclick="socket.emit('hostGame', document.getElementById('gName').value)">Host Game</button>
+            <ul id="gList"></ul>
+        </div>
+
+        <div id="room" class="hidden">
+            <h2 id="rTitle"></h2>
+            <p>Room Code: <b id="rId"></b></p>
+            <h3>Players Joined:</h3>
+            <ul id="pList"></ul>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        
+        socket.on('updateGameList', (games) => {
+            const list = document.getElementById('gList');
+            list.innerHTML = '';
+            Object.values(games).forEach(g => {
+                list.innerHTML += `<li>${g.name} <button onclick="socket.emit('joinGame', '${g.id}')">Join</button></li>`;
+            });
+        });
+
+        socket.on('joinedRoom', (r) => {
+            document.getElementById('lobby').classList.add('hidden');
+            document.getElementById('room').classList.remove('hidden');
+            document.getElementById('rTitle').innerText = r.name;
+            document.getElementById('rId').innerText = r.id;
+            updatePlayers(r.players);
+        });
+
+        socket.on('playerUpdate', updatePlayers);
+        function updatePlayers(p) { 
+            document.getElementById('pList').innerHTML = p.map(x => `<li>Player ${x}</li>`).join(''); 
+        }
+    </script>
+</body>
+</html>
