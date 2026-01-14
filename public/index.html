@@ -5,51 +5,40 @@
     <title>Multiplayer Game</title>
     <style>
         body, html { margin: 0; padding: 0; font-family: sans-serif; height: 100%; background: transparent; }
-        
-        /* Center everything */
         .screen { display: none; padding: 20px; box-sizing: border-box; flex-direction: column; align-items: center; }
         .active { display: flex; }
-
-        /* Card Styling */
-        .card { background: white; width: 100%; max-width: 400px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #ddd; }
+        .card { background: white; width: 100%; max-width: 400px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #ddd; text-align: center; }
         
-        /* Headers */
         .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        h2 { margin: 0; font-size: 20px; }
-
-        /* Buttons & Inputs */
         button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 10px; }
         .btn-primary { background: #0070f3; color: white; }
+        .btn-camera { background: #28a745; color: white; margin-top: 5px; }
         .btn-exit { background: #ff4d4f; color: white; width: auto; padding: 5px 15px; font-size: 14px; }
         
         input { width: 90%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 10px; box-sizing: border-box; }
         ul { list-style: none; padding: 0; }
         li { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-
-        /* UTILITY: Hide things based on mode */
         .hidden-section { display: none !important; }
+
+        /* CAMERA STYLES */
+        #videoPreview { width: 100%; border-radius: 8px; background: #000; display: none; }
+        #snapshotArea { margin-top: 20px; border-top: 2px dashed #ddd; padding-top: 10px; }
+        #sharedImage { width: 100%; border-radius: 8px; border: 2px solid #333; display: none; }
     </style>
 </head>
 <body>
 
     <div id="lobbyScreen" class="screen active">
         <div class="card">
-            <h2 style="text-align:center; margin-bottom:15px;">🎮 Game Hub</h2>
-            
+            <h2>🎮 Game Hub</h2>
             <div id="hostSection">
                 <hr>
-                <p style="font-weight:bold; margin-bottom:5px;">Create a Room</p>
-                <input type="text" id="gameName" placeholder="Enter Room Name...">
+                <input type="text" id="gameName" placeholder="Room Name...">
                 <button class="btn-primary" onclick="hostGame()">Host Game</button>
-                <br><br>
             </div>
-
             <div id="joinSection">
                 <hr>
-                <p style="font-weight:bold; margin-bottom:5px;">Join a Room</p>
-                <ul id="gameList">
-                    <li style="color:#888;">Searching for games...</li>
-                </ul>
+                <ul id="gameList"><li>Searching...</li></ul>
             </div>
         </div>
     </div>
@@ -57,16 +46,25 @@
     <div id="roomScreen" class="screen">
         <div class="card">
             <div class="header-row">
-                <h2 id="roomTitle">Room Name</h2>
+                <h2 id="roomTitle">Room</h2>
                 <button class="btn-exit" onclick="leaveGame()">EXIT</button>
             </div>
+            <p>ID: <b id="roomCode">...</b></p>
             
-            <p>Room ID: <b id="roomCode">...</b></p>
+            <button class="btn-camera" onclick="startCamera()">📷 Open Camera</button>
+            <video id="videoPreview" autoplay playsinline></video>
+            <button id="snapBtn" class="btn-primary" style="display:none;" onclick="takePicture()">💥 Snap & Send</button>
+
+            <canvas id="canvas" style="display:none;"></canvas>
+
+            <div id="snapshotArea">
+                <p>Latest Snapshot:</p>
+                <img id="sharedImage" src="" alt="Snapshot">
+            </div>
+
             <hr>
-            
             <h3>Players:</h3>
             <ul id="playerList"></ul>
-            <p id="status" style="color:#888; margin-top:20px;">Waiting...</p>
         </div>
     </div>
 
@@ -75,44 +73,72 @@
         const socket = io();
         let currentRoomId = null;
 
-        // --- 1. THE MODE DETECTOR (The New Part) ---
+        // --- CAMERA LOGIC ---
+        function startCamera() {
+            const video = document.getElementById('videoPreview');
+            const snapBtn = document.getElementById('snapBtn');
+            
+            // Ask browser for camera access
+            navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+                .then(stream => {
+                    video.srcObject = stream;
+                    video.style.display = 'block';
+                    snapBtn.style.display = 'block';
+                })
+                .catch(err => {
+                    alert("Error: " + err.message + ". Did you update the Carrd Embed code?");
+                });
+        }
+
+        function takePicture() {
+            const video = document.getElementById('videoPreview');
+            const canvas = document.getElementById('canvas');
+            const context = canvas.getContext('2d');
+
+            // Set canvas size to match video (keep it small for speed)
+            canvas.width = 320; 
+            canvas.height = 240;
+
+            // Draw video frame to canvas
+            context.drawImage(video, 0, 0, 320, 240);
+
+            // Convert to data string
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.5); // 0.5 = 50% quality
+
+            // Send to Server
+            if (currentRoomId) {
+                socket.emit('sendImage', { roomId: currentRoomId, image: dataUrl });
+            }
+        }
+
+        // --- RECEIVE IMAGE FROM SERVER ---
+        socket.on('receiveImage', (imageData) => {
+            const img = document.getElementById('sharedImage');
+            img.src = imageData;
+            img.style.display = 'block';
+        });
+
+
+        // --- STANDARD GAME LOGIC ---
         window.onload = function() {
             const params = new URLSearchParams(window.location.search);
             const mode = params.get('mode');
-
-            if (mode === 'host') {
-                // If Host Mode: Hide the Join Section
-                document.getElementById('joinSection').classList.add('hidden-section');
-            } else if (mode === 'join') {
-                // If Join Mode: Hide the Host Section
-                document.getElementById('hostSection').classList.add('hidden-section');
-            }
-            // If no mode is found, it shows both (default)
+            if (mode === 'host') document.getElementById('joinSection').classList.add('hidden-section');
+            else if (mode === 'join') document.getElementById('hostSection').classList.add('hidden-section');
         };
 
-        // --- 2. GAME ACTIONS ---
         function hostGame() {
             const name = document.getElementById('gameName').value;
             if(name) socket.emit('hostGame', name);
         }
         function joinGame(id) { socket.emit('joinGame', id); }
-        function leaveGame() { 
-            if(currentRoomId) socket.emit('leaveGame', currentRoomId); 
-        }
+        function leaveGame() { if(currentRoomId) socket.emit('leaveGame', currentRoomId); }
 
-        // --- 3. SOCKET LISTENERS ---
         socket.on('updateGameList', (games) => {
             const list = document.getElementById('gameList');
             list.innerHTML = '';
-            const gArray = Object.values(games);
-            
-            if(gArray.length === 0) {
-                list.innerHTML = '<li style="color:#888;">No active games found.</li>';
-                return;
-            }
-
-            gArray.forEach(g => {
-                list.innerHTML += `<li><span><b>${g.name}</b></span> <button class="btn-primary" style="width:auto; padding:5px 10px; margin:0;" onclick="joinGame('${g.id}')">Join</button></li>`;
+            Object.values(games).forEach(g => {
+                list.innerHTML += `<li><b>${g.name}</b> <button class="btn-primary" style="width:auto; padding:5px;" onclick="joinGame('${g.id}')">Join</button></li>`;
             });
         });
 
@@ -125,18 +151,19 @@
             updatePlayers(room.players);
         });
 
-        socket.on('playerUpdate', updatePlayers);
+        socket.on('playerUpdate', (players) => {
+            document.getElementById('playerList').innerHTML = players.map(p => `<li>👤 Player ${p}</li>`).join('');
+        });
         
         socket.on('backToLobby', () => {
             currentRoomId = null;
             document.getElementById('roomScreen').classList.remove('active');
             document.getElementById('lobbyScreen').classList.add('active');
+            // Turn off camera when leaving
+            const video = document.getElementById('videoPreview');
+            if(video.srcObject) video.srcObject.getTracks().forEach(track => track.stop());
+            video.style.display = 'none';
         });
-
-        function updatePlayers(players) {
-            document.getElementById('playerList').innerHTML = players.map(p => `<li>👤 Player ${p}</li>`).join('');
-            document.getElementById('status').innerText = players.length > 1 ? "Ready!" : "Waiting for opponent...";
-        }
     </script>
 </body>
 </html>
