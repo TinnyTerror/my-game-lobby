@@ -7,23 +7,36 @@
         body, html { margin: 0; padding: 0; font-family: sans-serif; height: 100%; background: transparent; }
         .screen { display: none; padding: 20px; box-sizing: border-box; flex-direction: column; align-items: center; }
         .active { display: flex; }
+        
         .card { background: white; width: 100%; max-width: 400px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #ddd; text-align: center; }
         
-        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 10px; }
         .btn-primary { background: #0070f3; color: white; }
-        .btn-camera { background: #28a745; color: white; margin-top: 5px; }
+        .btn-camera { background: #28a745; color: white; }
         .btn-exit { background: #ff4d4f; color: white; width: auto; padding: 5px 15px; font-size: 14px; }
         
-        input { width: 90%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 10px; box-sizing: border-box; }
+        /* THE NEW "OPEN IMAGE" BUTTON (Starts hidden) */
+        #incomingImgBtn { 
+            background: #ff0080; 
+            color: white; 
+            font-weight: bold; 
+            display: none; /* Hidden until image arrives */
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        input { width: 90%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 10px; }
         ul { list-style: none; padding: 0; }
         li { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
         .hidden-section { display: none !important; }
-
-        /* CAMERA STYLES */
-        #videoPreview { width: 100%; border-radius: 8px; background: #000; display: none; }
-        #snapshotArea { margin-top: 20px; border-top: 2px dashed #ddd; padding-top: 10px; }
-        #sharedImage { width: 100%; border-radius: 8px; border: 2px solid #333; display: none; }
+        
+        #videoPreview { width: 100%; border-radius: 8px; background: #000; display: none; margin-top:10px; }
     </style>
 </head>
 <body>
@@ -55,12 +68,9 @@
             <video id="videoPreview" autoplay playsinline></video>
             <button id="snapBtn" class="btn-primary" style="display:none;" onclick="takePicture()">💥 Snap & Send</button>
 
-            <canvas id="canvas" style="display:none;"></canvas>
+            <button id="incomingImgBtn" onclick="openImagePopup()">📸 NEW PHOTO! CLICK TO VIEW</button>
 
-            <div id="snapshotArea">
-                <p>Latest Snapshot:</p>
-                <img id="sharedImage" src="" alt="Snapshot">
-            </div>
+            <canvas id="canvas" style="display:none;"></canvas>
 
             <hr>
             <h3>Players:</h3>
@@ -72,54 +82,73 @@
     <script>
         const socket = io();
         let currentRoomId = null;
+        let lastReceivedImage = null; // Store the image data here
 
-        // --- CAMERA LOGIC ---
+        // --- CAMERA & POPUP LOGIC ---
+
         function startCamera() {
-            const video = document.getElementById('videoPreview');
-            const snapBtn = document.getElementById('snapBtn');
-            
-            // Ask browser for camera access
             navigator.mediaDevices.getUserMedia({ video: true, audio: false })
                 .then(stream => {
+                    const video = document.getElementById('videoPreview');
                     video.srcObject = stream;
                     video.style.display = 'block';
-                    snapBtn.style.display = 'block';
+                    document.getElementById('snapBtn').style.display = 'block';
                 })
-                .catch(err => {
-                    alert("Error: " + err.message + ". Did you update the Carrd Embed code?");
-                });
+                .catch(err => alert("Camera blocked! Check Carrd settings."));
         }
 
         function takePicture() {
             const video = document.getElementById('videoPreview');
             const canvas = document.getElementById('canvas');
-            const context = canvas.getContext('2d');
-
-            // Set canvas size to match video (keep it small for speed)
-            canvas.width = 320; 
-            canvas.height = 240;
-
-            // Draw video frame to canvas
-            context.drawImage(video, 0, 0, 320, 240);
-
-            // Convert to data string
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.5); // 0.5 = 50% quality
-
-            // Send to Server
-            if (currentRoomId) {
-                socket.emit('sendImage', { roomId: currentRoomId, image: dataUrl });
-            }
+            canvas.width = 320; canvas.height = 240;
+            canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
+            
+            // Get data and send
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+            if (currentRoomId) socket.emit('sendImage', { roomId: currentRoomId, image: dataUrl });
+            
+            // Hide camera after snap (optional)
+            video.style.display = 'none';
+            document.getElementById('snapBtn').style.display = 'none';
         }
 
-        // --- RECEIVE IMAGE FROM SERVER ---
+        // When Server sends an image...
         socket.on('receiveImage', (imageData) => {
-            const img = document.getElementById('sharedImage');
-            img.src = imageData;
-            img.style.display = 'block';
+            // 1. Save the data
+            lastReceivedImage = imageData;
+            
+            // 2. Show the "New Photo" button (It pulses!)
+            const btn = document.getElementById('incomingImgBtn');
+            btn.style.display = 'block';
+            btn.innerText = "📸 NEW PHOTO! CLICK TO VIEW";
         });
 
+        // When User clicks the Pulse Button...
+        function openImagePopup() {
+            if (!lastReceivedImage) return;
 
-        // --- STANDARD GAME LOGIC ---
+            // 1. Open a new blank window
+            const newWin = window.open("", "_blank", "width=800,height=600");
+
+            // 2. Write the image into it (Full Screen style)
+            if (newWin) {
+                newWin.document.write(`
+                    <html>
+                        <head><title>Game Photo</title></head>
+                        <body style="margin:0; background:black; display:flex; justify-content:center; align-items:center; height:100vh;">
+                            <img src="${lastReceivedImage}" style="max-width:100%; max-height:100%; box-shadow:0 0 20px white;">
+                        </body>
+                    </html>
+                `);
+            } else {
+                alert("Popup blocked! Please allow popups for this site.");
+            }
+
+            // 3. Hide the button after viewing
+            document.getElementById('incomingImgBtn').style.display = 'none';
+        }
+
+        // --- STANDARD GAME LOGIC (Keep this) ---
         window.onload = function() {
             const params = new URLSearchParams(window.location.search);
             const mode = params.get('mode');
@@ -148,7 +177,7 @@
             document.getElementById('roomScreen').classList.add('active');
             document.getElementById('roomTitle').innerText = room.name;
             document.getElementById('roomCode').innerText = room.id;
-            updatePlayers(room.players);
+            document.getElementById('playerList').innerHTML = room.players.map(p => `<li>👤 Player ${p}</li>`).join('');
         });
 
         socket.on('playerUpdate', (players) => {
@@ -159,9 +188,9 @@
             currentRoomId = null;
             document.getElementById('roomScreen').classList.remove('active');
             document.getElementById('lobbyScreen').classList.add('active');
-            // Turn off camera when leaving
+            document.getElementById('incomingImgBtn').style.display = 'none';
             const video = document.getElementById('videoPreview');
-            if(video.srcObject) video.srcObject.getTracks().forEach(track => track.stop());
+            if(video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
             video.style.display = 'none';
         });
     </script>
