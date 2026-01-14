@@ -4,70 +4,69 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Multiplayer Game</title>
     <style>
-        /* General Styles to make it look like an App */
-        body, html { margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; height: 100%; background: #f0f2f5; }
-        .screen { display: none; height: 100%; padding: 20px; box-sizing: border-box; flex-direction: column; align-items: center; }
+        body, html { margin: 0; padding: 0; font-family: sans-serif; height: 100%; background: transparent; }
         
-        /* This class makes a screen visible */
+        /* Center everything */
+        .screen { display: none; padding: 20px; box-sizing: border-box; flex-direction: column; align-items: center; }
         .active { display: flex; }
 
         /* Card Styling */
-        .card { background: white; width: 100%; max-width: 400px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; }
+        .card { background: white; width: 100%; max-width: 400px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #ddd; }
         
-        /* Buttons & Inputs */
-        button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 10px; transition: 0.2s; }
-        .btn-primary { background: #0070f3; color: white; }
-        .btn-primary:hover { background: #0056b3; }
-        .btn-danger { background: #ff4d4f; color: white; }
-        .btn-danger:hover { background: #d9363e; }
-        
-        input { width: 90%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 10px; font-size: 16px; }
+        /* Headers */
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        h2 { margin: 0; font-size: 20px; }
 
-        /* Lists */
-        ul { list-style: none; padding: 0; width: 100%; text-align: left; }
-        li { background: #f9f9f9; border-bottom: 1px solid #eee; padding: 10px; display: flex; justify-content: space-between; align-items: center; }
-        li:first-child { border-top-left-radius: 8px; border-top-right-radius: 8px; }
-        li:last-child { border-bottom: none; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; }
+        /* Buttons & Inputs */
+        button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        .btn-primary { background: #0070f3; color: white; }
+        .btn-exit { background: #ff4d4f; color: white; width: auto; padding: 5px 15px; font-size: 14px; }
         
-        .status-badge { background: #e6f7ff; color: #0070f3; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        input { width: 90%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 10px; box-sizing: border-box; }
+        ul { list-style: none; padding: 0; }
+        li { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+
+        /* UTILITY: Hide things based on mode */
+        .hidden-section { display: none !important; }
     </style>
 </head>
 <body>
 
     <div id="lobbyScreen" class="screen active">
-        <h1>🎮 Game Hub</h1>
-        
         <div class="card">
-            <h3>Host a Match</h3>
-            <input type="text" id="gameName" placeholder="Enter Room Name (e.g. Table 1)">
-            <button class="btn-primary" onclick="hostGame()">Create Room</button>
-        </div>
+            <h2 style="text-align:center; margin-bottom:15px;">🎮 Game Hub</h2>
+            
+            <div id="hostSection">
+                <hr>
+                <p style="font-weight:bold; margin-bottom:5px;">Create a Room</p>
+                <input type="text" id="gameName" placeholder="Enter Room Name...">
+                <button class="btn-primary" onclick="hostGame()">Host Game</button>
+                <br><br>
+            </div>
 
-        <br>
-
-        <div class="card">
-            <h3>Available Rooms</h3>
-            <ul id="gameList">
-                <p style="color: #888; font-size: 14px;">Searching for games...</p>
-            </ul>
+            <div id="joinSection">
+                <hr>
+                <p style="font-weight:bold; margin-bottom:5px;">Join a Room</p>
+                <ul id="gameList">
+                    <li style="color:#888;">Searching for games...</li>
+                </ul>
+            </div>
         </div>
     </div>
 
     <div id="roomScreen" class="screen">
         <div class="card">
-            <h2 id="roomTitle">Waiting Room</h2>
-            <div class="status-badge">Room Code: <span id="roomCode">---</span></div>
+            <div class="header-row">
+                <h2 id="roomTitle">Room Name</h2>
+                <button class="btn-exit" onclick="leaveGame()">EXIT</button>
+            </div>
             
-            <br>
-            <h3>Players Joined</h3>
-            <ul id="playerList">
-                </ul>
+            <p>Room ID: <b id="roomCode">...</b></p>
+            <hr>
             
-            <p id="waitingMsg" style="color: #666; margin-top: 20px;">Waiting for host to start...</p>
-            
-            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-            
-            <button class="btn-danger" onclick="leaveGame()">Exit Room</button>
+            <h3>Players:</h3>
+            <ul id="playerList"></ul>
+            <p id="status" style="color:#888; margin-top:20px;">Waiting...</p>
         </div>
     </div>
 
@@ -76,90 +75,67 @@
         const socket = io();
         let currentRoomId = null;
 
-        // --- BUTTON ACTIONS ---
+        // --- 1. THE MODE DETECTOR (The New Part) ---
+        window.onload = function() {
+            const params = new URLSearchParams(window.location.search);
+            const mode = params.get('mode');
 
+            if (mode === 'host') {
+                // If Host Mode: Hide the Join Section
+                document.getElementById('joinSection').classList.add('hidden-section');
+            } else if (mode === 'join') {
+                // If Join Mode: Hide the Host Section
+                document.getElementById('hostSection').classList.add('hidden-section');
+            }
+            // If no mode is found, it shows both (default)
+        };
+
+        // --- 2. GAME ACTIONS ---
         function hostGame() {
             const name = document.getElementById('gameName').value;
-            if(!name) return alert("Please name your game!");
-            socket.emit('hostGame', name);
+            if(name) socket.emit('hostGame', name);
+        }
+        function joinGame(id) { socket.emit('joinGame', id); }
+        function leaveGame() { 
+            if(currentRoomId) socket.emit('leaveGame', currentRoomId); 
         }
 
-        function joinGame(id) {
-            socket.emit('joinGame', id);
-        }
-
-        function leaveGame() {
-            if(currentRoomId) {
-                socket.emit('leaveGame', currentRoomId);
-            }
-        }
-
-        // --- NAVIGATION HELPERS ---
-        
-        function showScreen(screenName) {
-            // Hide all screens
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            // Show the requested one
-            document.getElementById(screenName).classList.add('active');
-        }
-
-        // --- SOCKET EVENTS ---
-
-        // 1. Update Lobby List
+        // --- 3. SOCKET LISTENERS ---
         socket.on('updateGameList', (games) => {
             const list = document.getElementById('gameList');
             list.innerHTML = '';
+            const gArray = Object.values(games);
             
-            const gameArray = Object.values(games);
-            if(gameArray.length === 0) {
-                list.innerHTML = '<p style="color: #888; font-size: 14px;">No active games found.</p>';
+            if(gArray.length === 0) {
+                list.innerHTML = '<li style="color:#888;">No active games found.</li>';
                 return;
             }
 
-            gameArray.forEach(game => {
-                list.innerHTML += `
-                    <li>
-                        <span><b>${game.name}</b> <small>(${game.players.length}/2)</small></span>
-                        <button onclick="joinGame('${game.id}')" style="width: auto; padding: 5px 10px; margin: 0; font-size: 12px;">Join</button>
-                    </li>
-                `;
+            gArray.forEach(g => {
+                list.innerHTML += `<li><span><b>${g.name}</b></span> <button class="btn-primary" style="width:auto; padding:5px 10px; margin:0;" onclick="joinGame('${g.id}')">Join</button></li>`;
             });
         });
 
-        // 2. You Joined/Hosted a Room -> Go to Waiting Screen
         socket.on('joinedRoom', (room) => {
             currentRoomId = room.id;
+            document.getElementById('lobbyScreen').classList.remove('active');
+            document.getElementById('roomScreen').classList.add('active');
             document.getElementById('roomTitle').innerText = room.name;
             document.getElementById('roomCode').innerText = room.id;
-            updatePlayerList(room.players);
-            showScreen('roomScreen');
+            updatePlayers(room.players);
         });
 
-        // 3. Someone else joined/left your room -> Update List
-        socket.on('playerUpdate', (players) => {
-            updatePlayerList(players);
-        });
-
-        // 4. You Left the Room -> Go back to Lobby
+        socket.on('playerUpdate', updatePlayers);
+        
         socket.on('backToLobby', () => {
             currentRoomId = null;
-            showScreen('lobbyScreen');
+            document.getElementById('roomScreen').classList.remove('active');
+            document.getElementById('lobbyScreen').classList.add('active');
         });
 
-        function updatePlayerList(players) {
-            const pList = document.getElementById('playerList');
-            pList.innerHTML = players.map(p => `<li>👤 Player ${p}</li>`).join('');
-            
-            // Optional: Update status message
-            const msg = document.getElementById('waitingMsg');
-            if(players.length >= 2) {
-                msg.innerText = "Ready to start!";
-                msg.style.color = "green";
-                msg.style.fontWeight = "bold";
-            } else {
-                msg.innerText = "Waiting for players...";
-                msg.style.color = "#666";
-            }
+        function updatePlayers(players) {
+            document.getElementById('playerList').innerHTML = players.map(p => `<li>👤 Player ${p}</li>`).join('');
+            document.getElementById('status').innerText = players.length > 1 ? "Ready!" : "Waiting for opponent...";
         }
     </script>
 </body>
