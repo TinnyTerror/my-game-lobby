@@ -15,7 +15,13 @@
     .btn-primary { background: #0070f3; color: white; }
     .btn-camera { background: #28a745; color: white; }
     .btn-exit { background: #ff4d4f; color: white; width: auto; padding: 5px 15px; font-size: 14px; }
-    .btn-fullscreen { background: #111; color: white; font-weight: bold; display: none; }
+
+    .btn-fullscreen {
+      background: #111;
+      color: white;
+      font-weight: bold;
+      display: none;
+    }
 
     .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     input { width: 90%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 10px; }
@@ -25,7 +31,7 @@
 
     #videoPreview { width: 100%; border-radius: 8px; background: #000; display: none; margin-top:10px; }
 
-    /* NEW: Inline incoming image preview */
+    /* Inline preview area */
     #incomingWrap {
       display: none;
       margin-top: 12px;
@@ -49,31 +55,30 @@
       margin-top: 8px;
       display: flex;
       justify-content: space-between;
-      gap: 10px;
       align-items: center;
+      gap: 10px;
     }
 
-    /* NEW: Fullscreen overlay INSIDE the iframe (no popups) */
+    /* Fullscreen overlay (covers viewport) */
     #overlay {
       position: fixed;
       inset: 0;
       display: none;            /* toggled to flex */
       flex-direction: column;
-      background: rgba(0,0,0,0.92);
+      background: black;
       z-index: 999999;
-      padding: 14px;
-      box-sizing: border-box;
     }
     #overlayTop {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      padding: 10px;
       gap: 10px;
-      margin-bottom: 10px;
+      background: rgba(0,0,0,0.35);
     }
     #overlayTitle {
       color: white;
-      font-size: 14px;
+      font-size: 13px;
       opacity: 0.85;
       text-align: left;
     }
@@ -86,6 +91,7 @@
       border-radius: 10px;
       cursor: pointer;
       border: none;
+      margin-top: 0;
     }
     #overlayBody {
       flex: 1;
@@ -93,35 +99,31 @@
       justify-content: center;
       align-items: center;
       overflow: hidden;
-      border-radius: 12px;
     }
     #overlayImg {
-      max-width: 100%;
-      max-height: 100%;
-      border-radius: 12px;
+      width: 100%;
+      height: 100%;
+      object-fit: contain; /* change to 'cover' if you want it to crop instead */
       background: black;
-      object-fit: contain;
-      box-shadow: 0 0 25px rgba(255,255,255,0.18);
     }
   </style>
 </head>
 <body>
 
-  <!-- Fullscreen overlay (in-iframe) -->
+  <!-- Fullscreen overlay -->
   <div id="overlay">
     <div id="overlayTop">
-      <div id="overlayTitle">Snapshot Viewer</div>
+      <div id="overlayTitle">Fullscreen Snapshot (ESC to exit)</div>
       <button id="overlayClose" onclick="closeOverlay()">Close ✕</button>
     </div>
     <div id="overlayBody">
-      <img id="overlayImg" alt="Full screen snapshot">
+      <img id="overlayImg" alt="Fullscreen snapshot">
     </div>
   </div>
 
   <div id="lobbyScreen" class="screen active">
     <div class="card">
       <h2>🎮 Game Hub</h2>
-
       <input type="text" id="playerIdInput" placeholder="Your Player ID..." />
 
       <div id="hostSection">
@@ -150,12 +152,12 @@
       <video id="videoPreview" autoplay playsinline></video>
       <button id="snapBtn" class="btn-primary" style="display:none;" onclick="takePicture()">💥 Snap & Send</button>
 
-      <!-- REPLACEMENT: Inline image preview + fullscreen option -->
+      <!-- Inline preview + fullscreen button -->
       <div id="incomingWrap">
         <img id="incomingImg" alt="Latest received snapshot" />
         <div id="incomingMeta">
-          <span id="incomingTime">Latest snapshot: just now</span>
-          <button id="fullscreenBtn" class="btn-fullscreen" onclick="openOverlay()">🔍 Full Screen</button>
+          <span id="incomingTime">Latest snapshot</span>
+          <button id="fullscreenBtn" class="btn-fullscreen" onclick="openFullscreenImage()">⛶ FULLSCREEN IMAGE</button>
         </div>
       </div>
 
@@ -172,8 +174,6 @@
     const socket = io();
     let currentRoomId = null;
     let lastReceivedImage = null;
-
-    // --- CAMERA LOGIC ---
 
     function startCamera() {
       navigator.mediaDevices.getUserMedia({ video: true, audio: false })
@@ -195,16 +195,15 @@
       const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
       if (currentRoomId) socket.emit('sendImage', { roomId: currentRoomId, image: dataUrl });
 
-      // Hide camera after snap (optional)
       video.style.display = 'none';
       document.getElementById('snapBtn').style.display = 'none';
     }
 
-    // --- NEW: Inline image preview in iframe ---
+    // When Server sends an image...
     socket.on('receiveImage', (imageData) => {
       lastReceivedImage = imageData;
 
-      // Show inline preview
+      // Inline preview
       const wrap = document.getElementById('incomingWrap');
       const img = document.getElementById('incomingImg');
       const time = document.getElementById('incomingTime');
@@ -213,28 +212,54 @@
       img.src = imageData;
       wrap.style.display = 'block';
       fsBtn.style.display = 'inline-block';
-
       time.innerText = "Latest snapshot: " + new Date().toLocaleTimeString();
 
-      // If overlay is open, update it live too
+      // If overlay is currently open, update it too
       const overlay = document.getElementById('overlay');
       if (overlay.style.display === 'flex') {
         document.getElementById('overlayImg').src = imageData;
       }
     });
 
-    function openOverlay() {
+    // Fullscreen flow: show overlay + request true fullscreen (removes bars/taskbar)
+    async function openFullscreenImage() {
       if (!lastReceivedImage) return;
+
+      const overlay = document.getElementById('overlay');
       document.getElementById('overlayImg').src = lastReceivedImage;
-      document.getElementById('overlay').style.display = 'flex';
+
+      overlay.style.display = 'flex';
+
+      // True fullscreen: requires user gesture + iframe permission (if embedded)
+      try {
+        if (overlay.requestFullscreen) {
+          await overlay.requestFullscreen();
+        } else if (document.documentElement.requestFullscreen) {
+          await document.documentElement.requestFullscreen();
+        }
+      } catch (e) {
+        // If iframe permissions block fullscreen, overlay still works inside the iframe
+        // (It just won't remove browser chrome.)
+      }
     }
 
-    function closeOverlay() {
+    async function closeOverlay() {
       document.getElementById('overlay').style.display = 'none';
+
+      // Exit true fullscreen if we entered it
+      try {
+        if (document.fullscreenElement && document.exitFullscreen) {
+          await document.exitFullscreen();
+        }
+      } catch (e) {}
     }
+
+    // ESC closes overlay + exits fullscreen
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeOverlay();
+    });
 
     // --- STANDARD GAME LOGIC ---
-
     window.onload = function() {
       const params = new URLSearchParams(window.location.search);
       const mode = params.get('mode');
@@ -277,15 +302,13 @@
 
     socket.on('joinedRoom', (room) => {
       currentRoomId = room.id;
-
       document.getElementById('lobbyScreen').classList.remove('active');
       document.getElementById('roomScreen').classList.add('active');
-
       document.getElementById('roomTitle').innerText = room.name;
       document.getElementById('roomCode').innerText = room.id;
       document.getElementById('playerList').innerHTML = room.players.map(p => `<li>👤 ${p}</li>`).join('');
 
-      // Reset incoming preview on room join
+      // Reset preview
       lastReceivedImage = null;
       document.getElementById('incomingWrap').style.display = 'none';
       document.getElementById('incomingImg').src = '';
@@ -299,7 +322,6 @@
 
     socket.on('backToLobby', () => {
       currentRoomId = null;
-
       document.getElementById('roomScreen').classList.remove('active');
       document.getElementById('lobbyScreen').classList.add('active');
 
@@ -315,11 +337,6 @@
       document.getElementById('incomingImg').src = '';
       document.getElementById('fullscreenBtn').style.display = 'none';
       closeOverlay();
-    });
-
-    // Optional: close overlay with ESC
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeOverlay();
     });
   </script>
 </body>
