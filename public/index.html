@@ -16,12 +16,8 @@
     .btn-camera { background: #28a745; color: white; }
     .btn-exit { background: #ff4d4f; color: white; width: auto; padding: 5px 15px; font-size: 14px; }
 
-    .btn-fullscreen {
-      background: #111;
-      color: white;
-      font-weight: bold;
-      display: none;
-    }
+    .btn-fullscreen { background: #111; color: white; font-weight: bold; display: none; }
+    .btn-stop { background: #ff4d4f; color: white; font-weight: bold; display: none; }
 
     .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     input { width: 90%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 10px; }
@@ -59,11 +55,11 @@
       gap: 10px;
     }
 
-    /* Fullscreen overlay (covers viewport) */
+    /* Fullscreen overlay */
     #overlay {
       position: fixed;
       inset: 0;
-      display: none;            /* toggled to flex */
+      display: none;
       flex-direction: column;
       background: black;
       z-index: 999999;
@@ -103,8 +99,16 @@
     #overlayImg {
       width: 100%;
       height: 100%;
-      object-fit: contain; /* change to 'cover' if you want it to crop instead */
+      object-fit: contain;
       background: black;
+    }
+
+    /* Small status line for sending loop */
+    #sendStatus {
+      display: none;
+      font-size: 12px;
+      opacity: 0.75;
+      margin-top: 8px;
     }
   </style>
 </head>
@@ -150,7 +154,11 @@
 
       <button class="btn-camera" onclick="startCamera()">📷 Open Camera</button>
       <video id="videoPreview" autoplay playsinline></video>
-      <button id="snapBtn" class="btn-primary" style="display:none;" onclick="takePicture()">💥 Snap & Send</button>
+
+      <!-- Replaces Snap & Send -->
+      <button id="startBtn" class="btn-primary" style="display:none;" onclick="startSending()">▶ Start (Send every 30s)</button>
+      <button id="stopBtn" class="btn-stop" onclick="stopSending()">■ Stop Sending</button>
+      <div id="sendStatus"></div>
 
       <!-- Inline preview + fullscreen button -->
       <div id="incomingWrap">
@@ -173,37 +181,93 @@
   <script>
     const socket = io();
     let currentRoomId = null;
+
     let lastReceivedImage = null;
+
+    // NEW: camera + sending loop state
+    let cameraStream = null;
+    let sendIntervalId = null;
+
+    const SEND_EVERY_MS = 30000; // 30 seconds
 
     function startCamera() {
       navigator.mediaDevices.getUserMedia({ video: true, audio: false })
         .then(stream => {
+          cameraStream = stream;
           const video = document.getElementById('videoPreview');
           video.srcObject = stream;
           video.style.display = 'block';
-          document.getElementById('snapBtn').style.display = 'block';
+
+          // Show start button, hide stop
+          document.getElementById('startBtn').style.display = 'block';
+          document.getElementById('stopBtn').style.display = 'none';
+          setSendStatus("");
         })
         .catch(() => alert("Camera blocked! Check Carrd / browser permissions."));
     }
 
-    function takePicture() {
+    function captureAndSendFrame() {
       const video = document.getElementById('videoPreview');
+      if (!video || !cameraStream || !currentRoomId) return;
+
+      // If video isn't ready yet, skip this tick
+      if (video.readyState < 2) return; // HAVE_CURRENT_DATA
+
       const canvas = document.getElementById('canvas');
       canvas.width = 320; canvas.height = 240;
       canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
 
       const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
-      if (currentRoomId) socket.emit('sendImage', { roomId: currentRoomId, image: dataUrl });
+      socket.emit('sendImage', { roomId: currentRoomId, image: dataUrl });
 
-      video.style.display = 'none';
-      document.getElementById('snapBtn').style.display = 'none';
+      setSendStatus("Last sent: " + new Date().toLocaleTimeString() + " (every 30s)");
     }
 
-    // When Server sends an image...
+    function startSending() {
+      if (!cameraStream) {
+        alert("Open the camera first.");
+        return;
+      }
+      if (!currentRoomId) {
+        alert("Join a room first.");
+        return;
+      }
+      if (sendIntervalId) return; // already running
+
+      // Immediately send one frame, then every 30s
+      captureAndSendFrame();
+      sendIntervalId = setInterval(captureAndSendFrame, SEND_EVERY_MS);
+
+      document.getElementById('startBtn').style.display = 'none';
+      document.getElementById('stopBtn').style.display = 'block';
+      setSendStatus("Sending started... (every 30s)");
+    }
+
+    function stopSending() {
+      if (sendIntervalId) {
+        clearInterval(sendIntervalId);
+        sendIntervalId = null;
+      }
+      document.getElementById('stopBtn').style.display = 'none';
+      document.getElementById('startBtn').style.display = cameraStream ? 'block' : 'none';
+      setSendStatus("Sending stopped.");
+    }
+
+    function setSendStatus(text) {
+      const el = document.getElementById('sendStatus');
+      if (!text) {
+        el.style.display = 'none';
+        el.innerText = '';
+      } else {
+        el.style.display = 'block';
+        el.innerText = text;
+      }
+    }
+
+    // Incoming images
     socket.on('receiveImage', (imageData) => {
       lastReceivedImage = imageData;
 
-      // Inline preview
       const wrap = document.getElementById('incomingWrap');
       const img = document.getElementById('incomingImg');
       const time = document.getElementById('incomingTime');
@@ -214,23 +278,20 @@
       fsBtn.style.display = 'inline-block';
       time.innerText = "Latest snapshot: " + new Date().toLocaleTimeString();
 
-      // If overlay is currently open, update it too
       const overlay = document.getElementById('overlay');
       if (overlay.style.display === 'flex') {
         document.getElementById('overlayImg').src = imageData;
       }
     });
 
-    // Fullscreen flow: show overlay + request true fullscreen (removes bars/taskbar)
+    // Fullscreen flow
     async function openFullscreenImage() {
       if (!lastReceivedImage) return;
 
       const overlay = document.getElementById('overlay');
       document.getElementById('overlayImg').src = lastReceivedImage;
-
       overlay.style.display = 'flex';
 
-      // True fullscreen: requires user gesture + iframe permission (if embedded)
       try {
         if (overlay.requestFullscreen) {
           await overlay.requestFullscreen();
@@ -238,15 +299,12 @@
           await document.documentElement.requestFullscreen();
         }
       } catch (e) {
-        // If iframe permissions block fullscreen, overlay still works inside the iframe
-        // (It just won't remove browser chrome.)
+        // If fullscreen is blocked by iframe permissions, overlay still works inside iframe.
       }
     }
 
     async function closeOverlay() {
       document.getElementById('overlay').style.display = 'none';
-
-      // Exit true fullscreen if we entered it
       try {
         if (document.fullscreenElement && document.exitFullscreen) {
           await document.exitFullscreen();
@@ -254,12 +312,11 @@
       } catch (e) {}
     }
 
-    // ESC closes overlay + exits fullscreen
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') closeOverlay();
     });
 
-    // --- STANDARD GAME LOGIC ---
+    // Gate host/join
     window.onload = function() {
       const params = new URLSearchParams(window.location.search);
       const mode = params.get('mode');
@@ -308,7 +365,7 @@
       document.getElementById('roomCode').innerText = room.id;
       document.getElementById('playerList').innerHTML = room.players.map(p => `<li>👤 ${p}</li>`).join('');
 
-      // Reset preview
+      // Reset incoming preview
       lastReceivedImage = null;
       document.getElementById('incomingWrap').style.display = 'none';
       document.getElementById('incomingImg').src = '';
@@ -322,14 +379,25 @@
 
     socket.on('backToLobby', () => {
       currentRoomId = null;
+
       document.getElementById('roomScreen').classList.remove('active');
       document.getElementById('lobbyScreen').classList.add('active');
 
-      // Stop camera stream if running
+      // Stop sending loop
+      stopSending();
+
+      // Stop camera stream
       const video = document.getElementById('videoPreview');
-      if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(t => t.stop());
+        cameraStream = null;
+      }
+      if (video.srcObject) video.srcObject = null;
       video.style.display = 'none';
-      document.getElementById('snapBtn').style.display = 'none';
+
+      document.getElementById('startBtn').style.display = 'none';
+      document.getElementById('stopBtn').style.display = 'none';
+      setSendStatus("");
 
       // Reset incoming preview
       lastReceivedImage = null;
