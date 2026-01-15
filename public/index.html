@@ -1,198 +1,218 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Multiplayer Game</title>
-    <style>
-        body, html { margin: 0; padding: 0; font-family: sans-serif; height: 100%; background: transparent; }
-        .screen { display: none; padding: 20px; box-sizing: border-box; flex-direction: column; align-items: center; }
-        .active { display: flex; }
-        
-        .card { background: white; width: 100%; max-width: 400px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #ddd; text-align: center; }
-        
-        button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 10px; }
-        .btn-primary { background: #0070f3; color: white; }
-        .btn-camera { background: #28a745; color: white; }
-        .btn-exit { background: #ff4d4f; color: white; width: auto; padding: 5px 15px; font-size: 14px; }
-        
-        /* THE NEW "OPEN IMAGE" BUTTON (Starts hidden) */
-        #incomingImgBtn { 
-            background: #ff0080; 
-            color: white; 
-            font-weight: bold; 
-            display: none; /* Hidden until image arrives */
-            animation: pulse 1.5s infinite;
-        }
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Multiplayer Game</title>
+  <style>
+    body, html { margin: 0; padding: 0; font-family: sans-serif; height: 100%; background: transparent; }
+    .screen { display: none; padding: 20px; box-sizing: border-box; flex-direction: column; align-items: center; }
+    .active { display: flex; }
 
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
+    .card { background: white; width: 100%; max-width: 400px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #ddd; text-align: center; }
 
-        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        input { width: 90%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 10px; }
-        ul { list-style: none; padding: 0; }
-        li { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        .hidden-section { display: none !important; }
-        
-        #videoPreview { width: 100%; border-radius: 8px; background: #000; display: none; margin-top:10px; }
-    </style>
+    button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+    .btn-primary { background: #0070f3; color: white; }
+    .btn-camera { background: #28a745; color: white; }
+    .btn-exit { background: #ff4d4f; color: white; width: auto; padding: 5px 15px; font-size: 14px; }
+
+    #incomingImgBtn {
+      background: #ff0080;
+      color: white;
+      font-weight: bold;
+      display: none;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+
+    .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    input { width: 90%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 10px; }
+    ul { list-style: none; padding: 0; }
+    li { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .hidden-section { display: none !important; }
+
+    #videoPreview { width: 100%; border-radius: 8px; background: #000; display: none; margin-top:10px; }
+  </style>
 </head>
 <body>
 
-    <div id="lobbyScreen" class="screen active">
-        <div class="card">
-            <h2>🎮 Game Hub</h2>
-            <div id="hostSection">
-                <hr>
-                <input type="text" id="gameName" placeholder="Room Name...">
-                <button class="btn-primary" onclick="hostGame()">Host Game</button>
-            </div>
-            <div id="joinSection">
-                <hr>
-                <ul id="gameList"><li>Searching...</li></ul>
-            </div>
-        </div>
+  <div id="lobbyScreen" class="screen active">
+    <div class="card">
+      <h2>🎮 Game Hub</h2>
+
+      <!-- NEW: Player ID prompt (required before host/join) -->
+      <input type="text" id="playerIdInput" placeholder="Your Player ID..." />
+
+      <div id="hostSection">
+        <hr>
+        <input type="text" id="gameName" placeholder="Room Name...">
+        <button class="btn-primary" onclick="hostGame()">Host Game</button>
+      </div>
+
+      <div id="joinSection">
+        <hr>
+        <ul id="gameList"><li>Searching...</li></ul>
+      </div>
     </div>
+  </div>
 
-    <div id="roomScreen" class="screen">
-        <div class="card">
-            <div class="header-row">
-                <h2 id="roomTitle">Room</h2>
-                <button class="btn-exit" onclick="leaveGame()">EXIT</button>
-            </div>
-            <p>ID: <b id="roomCode">...</b></p>
-            
-            <button class="btn-camera" onclick="startCamera()">📷 Open Camera</button>
-            <video id="videoPreview" autoplay playsinline></video>
-            <button id="snapBtn" class="btn-primary" style="display:none;" onclick="takePicture()">💥 Snap & Send</button>
+  <div id="roomScreen" class="screen">
+    <div class="card">
+      <div class="header-row">
+        <h2 id="roomTitle">Room</h2>
+        <button class="btn-exit" onclick="leaveGame()">EXIT</button>
+      </div>
 
-            <button id="incomingImgBtn" onclick="openImagePopup()">📸 NEW PHOTO! CLICK TO VIEW</button>
+      <p>ID: <b id="roomCode">...</b></p>
 
-            <canvas id="canvas" style="display:none;"></canvas>
+      <button class="btn-camera" onclick="startCamera()">📷 Open Camera</button>
+      <video id="videoPreview" autoplay playsinline></video>
+      <button id="snapBtn" class="btn-primary" style="display:none;" onclick="takePicture()">💥 Snap & Send</button>
 
-            <hr>
-            <h3>Players:</h3>
-            <ul id="playerList"></ul>
-        </div>
+      <button id="incomingImgBtn" onclick="openImagePopup()">📸 NEW PHOTO! CLICK TO VIEW</button>
+
+      <canvas id="canvas" style="display:none;"></canvas>
+
+      <hr>
+      <h3>Players:</h3>
+      <ul id="playerList"></ul>
     </div>
+  </div>
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script>
-        const socket = io();
-        let currentRoomId = null;
-        let lastReceivedImage = null; // Store the image data here
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    let currentRoomId = null;
+    let lastReceivedImage = null;
 
-        // --- CAMERA & POPUP LOGIC ---
+    // --- CAMERA & POPUP LOGIC ---
 
-        function startCamera() {
-            navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-                .then(stream => {
-                    const video = document.getElementById('videoPreview');
-                    video.srcObject = stream;
-                    video.style.display = 'block';
-                    document.getElementById('snapBtn').style.display = 'block';
-                })
-                .catch(err => alert("Camera blocked! Check Carrd settings."));
-        }
+    function startCamera() {
+      navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        .then(stream => {
+          const video = document.getElementById('videoPreview');
+          video.srcObject = stream;
+          video.style.display = 'block';
+          document.getElementById('snapBtn').style.display = 'block';
+        })
+        .catch(() => alert("Camera blocked! Check Carrd settings."));
+    }
 
-        function takePicture() {
-            const video = document.getElementById('videoPreview');
-            const canvas = document.getElementById('canvas');
-            canvas.width = 320; canvas.height = 240;
-            canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
-            
-            // Get data and send
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
-            if (currentRoomId) socket.emit('sendImage', { roomId: currentRoomId, image: dataUrl });
-            
-            // Hide camera after snap (optional)
-            video.style.display = 'none';
-            document.getElementById('snapBtn').style.display = 'none';
-        }
+    function takePicture() {
+      const video = document.getElementById('videoPreview');
+      const canvas = document.getElementById('canvas');
+      canvas.width = 320; canvas.height = 240;
+      canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
 
-        // When Server sends an image...
-        socket.on('receiveImage', (imageData) => {
-            // 1. Save the data
-            lastReceivedImage = imageData;
-            
-            // 2. Show the "New Photo" button (It pulses!)
-            const btn = document.getElementById('incomingImgBtn');
-            btn.style.display = 'block';
-            btn.innerText = "📸 NEW PHOTO! CLICK TO VIEW";
-        });
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+      if (currentRoomId) socket.emit('sendImage', { roomId: currentRoomId, image: dataUrl });
 
-        // When User clicks the Pulse Button...
-        function openImagePopup() {
-            if (!lastReceivedImage) return;
+      // Hide camera after snap (optional)
+      video.style.display = 'none';
+      document.getElementById('snapBtn').style.display = 'none';
+    }
 
-            // 1. Open a new blank window
-            const newWin = window.open("", "_blank", "width=800,height=600");
+    socket.on('receiveImage', (imageData) => {
+      lastReceivedImage = imageData;
 
-            // 2. Write the image into it (Full Screen style)
-            if (newWin) {
-                newWin.document.write(`
-                    <html>
-                        <head><title>Game Photo</title></head>
-                        <body style="margin:0; background:black; display:flex; justify-content:center; align-items:center; height:100vh;">
-                            <img src="${lastReceivedImage}" style="max-width:100%; max-height:100%; box-shadow:0 0 20px white;">
-                        </body>
-                    </html>
-                `);
-            } else {
-                alert("Popup blocked! Please allow popups for this site.");
-            }
+      const btn = document.getElementById('incomingImgBtn');
+      btn.style.display = 'block';
+      btn.innerText = "📸 NEW PHOTO! CLICK TO VIEW";
+    });
 
-            // 3. Hide the button after viewing
-            document.getElementById('incomingImgBtn').style.display = 'none';
-        }
+    function openImagePopup() {
+      if (!lastReceivedImage) return;
 
-        // --- STANDARD GAME LOGIC (Keep this) ---
-        window.onload = function() {
-            const params = new URLSearchParams(window.location.search);
-            const mode = params.get('mode');
-            if (mode === 'host') document.getElementById('joinSection').classList.add('hidden-section');
-            else if (mode === 'join') document.getElementById('hostSection').classList.add('hidden-section');
-        };
+      const newWin = window.open("", "_blank", "width=800,height=600");
 
-        function hostGame() {
-            const name = document.getElementById('gameName').value;
-            if(name) socket.emit('hostGame', name);
-        }
-        function joinGame(id) { socket.emit('joinGame', id); }
-        function leaveGame() { if(currentRoomId) socket.emit('leaveGame', currentRoomId); }
+      if (newWin) {
+        newWin.document.write(`
+          <html>
+            <head><title>Game Photo</title></head>
+            <body style="margin:0; background:black; display:flex; justify-content:center; align-items:center; height:100vh;">
+              <img src="${lastReceivedImage}" style="max-width:100%; max-height:100%; box-shadow:0 0 20px white;">
+            </body>
+          </html>
+        `);
+      } else {
+        alert("Popup blocked! Please allow popups for this site.");
+      }
 
-        socket.on('updateGameList', (games) => {
-            const list = document.getElementById('gameList');
-            list.innerHTML = '';
-            Object.values(games).forEach(g => {
-                list.innerHTML += `<li><b>${g.name}</b> <button class="btn-primary" style="width:auto; padding:5px;" onclick="joinGame('${g.id}')">Join</button></li>`;
-            });
-        });
+      document.getElementById('incomingImgBtn').style.display = 'none';
+    }
 
-        socket.on('joinedRoom', (room) => {
-            currentRoomId = room.id;
-            document.getElementById('lobbyScreen').classList.remove('active');
-            document.getElementById('roomScreen').classList.add('active');
-            document.getElementById('roomTitle').innerText = room.name;
-            document.getElementById('roomCode').innerText = room.id;
-            document.getElementById('playerList').innerHTML = room.players.map(p => `<li>👤 Player ${p}</li>`).join('');
-        });
+    // --- STANDARD GAME LOGIC ---
 
-        socket.on('playerUpdate', (players) => {
-            document.getElementById('playerList').innerHTML = players.map(p => `<li>👤 Player ${p}</li>`).join('');
-        });
-        
-        socket.on('backToLobby', () => {
-            currentRoomId = null;
-            document.getElementById('roomScreen').classList.remove('active');
-            document.getElementById('lobbyScreen').classList.add('active');
-            document.getElementById('incomingImgBtn').style.display = 'none';
-            const video = document.getElementById('videoPreview');
-            if(video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
-            video.style.display = 'none';
-        });
-    </script>
+    window.onload = function() {
+      const params = new URLSearchParams(window.location.search);
+      const mode = params.get('mode');
+      if (mode === 'host') document.getElementById('joinSection').classList.add('hidden-section');
+      else if (mode === 'join') document.getElementById('hostSection').classList.add('hidden-section');
+    };
+
+    // NEW: require Player ID before host/join
+    function getPlayerId() {
+      const pid = document.getElementById('playerIdInput').value.trim();
+      if (!pid) {
+        alert("Please enter a Player ID first.");
+        return null;
+      }
+      return pid;
+    }
+
+    function hostGame() {
+      const name = document.getElementById('gameName').value.trim();
+      const playerId = getPlayerId();
+      if (name && playerId) socket.emit('hostGame', { name, playerId });
+    }
+
+    function joinGame(id) {
+      const playerId = getPlayerId();
+      if (playerId) socket.emit('joinGame', { roomId: id, playerId });
+    }
+
+    function leaveGame() {
+      if (currentRoomId) socket.emit('leaveGame', currentRoomId);
+    }
+
+    socket.on('updateGameList', (games) => {
+      const list = document.getElementById('gameList');
+      list.innerHTML = '';
+      Object.values(games).forEach(g => {
+        list.innerHTML += `<li><b>${g.name}</b> <button class="btn-primary" style="width:auto; padding:5px;" onclick="joinGame('${g.id}')">Join</button></li>`;
+      });
+      if (!Object.values(games).length) list.innerHTML = '<li>No rooms yet.</li>';
+    });
+
+    socket.on('joinedRoom', (room) => {
+      currentRoomId = room.id;
+      document.getElementById('lobbyScreen').classList.remove('active');
+      document.getElementById('roomScreen').classList.add('active');
+      document.getElementById('roomTitle').innerText = room.name;
+      document.getElementById('roomCode').innerText = room.id;
+      document.getElementById('playerList').innerHTML = room.players.map(p => `<li>👤 ${p}</li>`).join('');
+    });
+
+    socket.on('playerUpdate', (players) => {
+      document.getElementById('playerList').innerHTML = players.map(p => `<li>👤 ${p}</li>`).join('');
+    });
+
+    socket.on('backToLobby', () => {
+      currentRoomId = null;
+      document.getElementById('roomScreen').classList.remove('active');
+      document.getElementById('lobbyScreen').classList.add('active');
+
+      document.getElementById('incomingImgBtn').style.display = 'none';
+
+      const video = document.getElementById('videoPreview');
+      if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+      video.style.display = 'none';
+      document.getElementById('snapBtn').style.display = 'none';
+    });
+  </script>
 </body>
 </html>
