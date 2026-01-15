@@ -14,20 +14,7 @@
     .btn-primary { background: #0070f3; color: white; }
     .btn-camera { background: #28a745; color: white; }
     .btn-exit { background: #ff4d4f; color: white; width: auto; padding: 5px 15px; font-size: 14px; }
-
-    #incomingImgBtn {
-      background: #ff0080;
-      color: white;
-      font-weight: bold;
-      display: none;
-      animation: pulse 1.5s infinite;
-    }
-
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-      100% { transform: scale(1); }
-    }
+    .btn-fullscreen { background: #111; color: white; font-weight: bold; display: none; }
 
     .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     input { width: 90%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 10px; }
@@ -36,6 +23,31 @@
     .hidden-section { display: none !important; }
 
     #videoPreview { width: 100%; border-radius: 8px; background: #000; display: none; margin-top:10px; }
+
+    /* NEW: incoming image preview area */
+    #incomingImageWrap {
+      display: none;
+      margin-top: 12px;
+      padding: 10px;
+      border: 1px solid #eee;
+      border-radius: 12px;
+      background: #fafafa;
+    }
+
+    #incomingImage {
+      width: 100%;
+      border-radius: 10px;
+      display: block;
+      background: #000;
+      object-fit: contain;
+      max-height: 320px;
+    }
+
+    .small-note {
+      font-size: 12px;
+      opacity: 0.75;
+      margin-top: 6px;
+    }
   </style>
 </head>
 <body>
@@ -44,7 +56,6 @@
     <div class="card">
       <h2>🎮 Game Hub</h2>
 
-      <!-- NEW: Player ID prompt (required before host/join) -->
       <input type="text" id="playerIdInput" placeholder="Your Player ID..." />
 
       <div id="hostSection">
@@ -73,7 +84,12 @@
       <video id="videoPreview" autoplay playsinline></video>
       <button id="snapBtn" class="btn-primary" style="display:none;" onclick="takePicture()">💥 Snap & Send</button>
 
-      <button id="incomingImgBtn" onclick="openImagePopup()">📸 NEW PHOTO! CLICK TO VIEW</button>
+      <!-- NEW: Inline incoming image preview + fullscreen option -->
+      <div id="incomingImageWrap">
+        <img id="incomingImage" alt="Incoming snapshot preview" />
+        <button id="fullscreenBtn" class="btn-fullscreen" onclick="openImagePopup()">🔍 Full Screen</button>
+        <div class="small-note">Newest snapshot updates automatically.</div>
+      </div>
 
       <canvas id="canvas" style="display:none;"></canvas>
 
@@ -89,7 +105,7 @@
     let currentRoomId = null;
     let lastReceivedImage = null;
 
-    // --- CAMERA & POPUP LOGIC ---
+    // --- CAMERA LOGIC ---
 
     function startCamera() {
       navigator.mediaDevices.getUserMedia({ video: true, audio: false })
@@ -116,33 +132,49 @@
       document.getElementById('snapBtn').style.display = 'none';
     }
 
+    // --- INCOMING IMAGE (NEW BEHAVIOR) ---
     socket.on('receiveImage', (imageData) => {
+      // Save for fullscreen pop-out
       lastReceivedImage = imageData;
 
-      const btn = document.getElementById('incomingImgBtn');
-      btn.style.display = 'block';
-      btn.innerText = "📸 NEW PHOTO! CLICK TO VIEW";
+      // Show inline preview in iframe
+      const wrap = document.getElementById('incomingImageWrap');
+      const img = document.getElementById('incomingImage');
+      const fsBtn = document.getElementById('fullscreenBtn');
+
+      img.src = imageData;
+      wrap.style.display = 'block';
+      fsBtn.style.display = 'block';
     });
 
+    // Pop out to a new window (fullscreen-ish)
     function openImagePopup() {
       if (!lastReceivedImage) return;
 
-      const newWin = window.open("", "_blank", "width=800,height=600");
-
-      if (newWin) {
-        newWin.document.write(`
-          <html>
-            <head><title>Game Photo</title></head>
-            <body style="margin:0; background:black; display:flex; justify-content:center; align-items:center; height:100vh;">
-              <img src="${lastReceivedImage}" style="max-width:100%; max-height:100%; box-shadow:0 0 20px white;">
-            </body>
-          </html>
-        `);
-      } else {
+      const newWin = window.open("", "_blank", "width=900,height=700");
+      if (!newWin) {
         alert("Popup blocked! Please allow popups for this site.");
+        return;
       }
 
-      document.getElementById('incomingImgBtn').style.display = 'none';
+      newWin.document.write(`
+        <html>
+          <head>
+            <title>Game Photo</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+          </head>
+          <body style="margin:0; background:black; display:flex; justify-content:center; align-items:center; height:100vh;">
+            <img src="${lastReceivedImage}" style="max-width:100%; max-height:100%; box-shadow:0 0 20px rgba(255,255,255,0.35);">
+            <script>
+              // Try to request fullscreen on click (user gesture required)
+              document.body.addEventListener('click', () => {
+                const el = document.documentElement;
+                if (el.requestFullscreen) el.requestFullscreen().catch(()=>{});
+              });
+            </script>
+          </body>
+        </html>
+      `);
     }
 
     // --- STANDARD GAME LOGIC ---
@@ -154,7 +186,6 @@
       else if (mode === 'join') document.getElementById('hostSection').classList.add('hidden-section');
     };
 
-    // NEW: require Player ID before host/join
     function getPlayerId() {
       const pid = document.getElementById('playerIdInput').value.trim();
       if (!pid) {
@@ -190,11 +221,20 @@
 
     socket.on('joinedRoom', (room) => {
       currentRoomId = room.id;
+
       document.getElementById('lobbyScreen').classList.remove('active');
       document.getElementById('roomScreen').classList.add('active');
+
       document.getElementById('roomTitle').innerText = room.name;
       document.getElementById('roomCode').innerText = room.id;
+
       document.getElementById('playerList').innerHTML = room.players.map(p => `<li>👤 ${p}</li>`).join('');
+
+      // Reset preview for new room join
+      lastReceivedImage = null;
+      document.getElementById('incomingImageWrap').style.display = 'none';
+      document.getElementById('incomingImage').src = '';
+      document.getElementById('fullscreenBtn').style.display = 'none';
     });
 
     socket.on('playerUpdate', (players) => {
@@ -203,15 +243,21 @@
 
     socket.on('backToLobby', () => {
       currentRoomId = null;
+
       document.getElementById('roomScreen').classList.remove('active');
       document.getElementById('lobbyScreen').classList.add('active');
 
-      document.getElementById('incomingImgBtn').style.display = 'none';
-
+      // Stop camera stream if running
       const video = document.getElementById('videoPreview');
       if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
       video.style.display = 'none';
       document.getElementById('snapBtn').style.display = 'none';
+
+      // Reset incoming preview
+      lastReceivedImage = null;
+      document.getElementById('incomingImageWrap').style.display = 'none';
+      document.getElementById('incomingImage').src = '';
+      document.getElementById('fullscreenBtn').style.display = 'none';
     });
   </script>
 </body>
