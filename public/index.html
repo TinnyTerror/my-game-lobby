@@ -5,9 +5,13 @@
   <title>Multiplayer Game</title>
   <style>
     body, html { margin: 0; padding: 0; font-family: sans-serif; height: 100%; background: #f4f4f4; }
+    
+    /* UTILS */
+    .hidden-section { display: none !important; }
+    
+    /* CONTROLS (Laptop) */
     .screen { display: none; padding: 20px; flex-direction: column; align-items: center; }
     .active { display: flex; }
-
     .card { background: white; width: 100%; max-width: 400px; padding: 20px; border-radius: 12px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #ddd; text-align: center; }
 
@@ -15,7 +19,13 @@
     .btn-primary { background: #0070f3; color: white; }
     .btn-camera { background: #28a745; color: white; }
     .btn-stop { background: #ff4d4f; color: white; font-weight: bold; display: none; }
-    .btn-projector { background: #111; color: white; border: 1px solid #444; margin-top: 20px; }
+    
+    /* The Link that acts like a Button */
+    .btn-link-projector { 
+        display: block; width: 100%; padding: 12px; margin-top: 15px;
+        background: #111; color: white; text-decoration: none; 
+        border-radius: 8px; text-align: center; font-weight: bold; box-sizing: border-box;
+    }
 
     input { width: 90%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 10px; }
     ul { list-style: none; padding: 0; }
@@ -23,28 +33,33 @@
     
     #videoPreview { width: 100%; border-radius: 8px; background: #000; display: none; margin-top:10px; }
     #sendStatus { display: none; font-size: 12px; opacity: 0.75; margin-top: 8px; color: #0070f3; }
-    
-    .hidden-section { display: none !important; }
 
     /* --- PROJECTOR MODE STYLES --- */
     #projectorView { 
         display: none; 
         position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
         background: black; 
+        flex-direction: column;
         justify-content: center; align-items: center; 
         z-index: 9999;
     }
     #projectorImage { 
         max-width: 100%; max-height: 100%; 
         object-fit: contain; 
+        z-index: 2;
     }
-    #projectorMsg { color: #555; font-size: 24px; position: absolute; }
+    #projectorDebug { 
+        color: #00ff00; font-family: monospace; font-size: 14px; 
+        position: absolute; top: 10px; left: 10px; z-index: 10;
+        background: rgba(0,0,0,0.5); padding: 10px;
+        pointer-events: none; /* Let clicks pass through */
+    }
   </style>
 </head>
 <body>
 
   <div id="projectorView">
-      <p id="projectorMsg">Waiting for opponent...</p>
+      <div id="projectorDebug">Initializing...</div>
       <img id="projectorImage" src="">
   </div>
 
@@ -77,8 +92,10 @@
 
           <p>ID: <b id="roomCode">...</b></p>
 
-          <button class="btn-projector" onclick="openProjector()">⛶ Launch Projector Window</button>
-          <p style="font-size:11px; color:#666; margin-top:5px;">(Drag this new window to your 2nd monitor)</p>
+          <a id="projectorLink" href="#" target="_blank" class="btn-link-projector">
+             ⛶ Open Projector Tab
+          </a>
+          <p style="font-size:11px; color:#666; margin-top:5px;">(Click to open tab, then drag tab to 2nd monitor)</p>
           <hr>
 
           <button class="btn-camera" onclick="startCamera()">📷 Open Camera</button>
@@ -104,8 +121,8 @@
     let currentRoomId = null;
     let cameraStream = null;
     let sendIntervalId = null;
-    let myPlayerId = null; // Store my own ID to filter images
-    let projectorOwnerId = null; // Used only if this window IS a projector
+    let myPlayerId = null; 
+    let projectorOwnerId = null;
 
     const SEND_EVERY_MS = 30000; // 30 seconds
 
@@ -117,10 +134,13 @@
       // PROJECTOR MODE LOGIC
       if (mode === 'projector') {
           const room = params.get('room');
-          projectorOwnerId = params.get('owner'); // "Who owns this projector?"
+          projectorOwnerId = params.get('owner');
 
+          // Switch UI
           document.getElementById('mainInterface').style.display = 'none';
           document.getElementById('projectorView').style.display = 'flex';
+          
+          updateDebug(`Projector Active.\nRoom: ${room}\nOwner: ${projectorOwnerId}\nWaiting for data...`);
           
           if (room) socket.emit('joinAsProjector', room);
           return;
@@ -131,11 +151,18 @@
       else if (mode === 'join') document.getElementById('hostSection').classList.add('hidden-section');
     };
 
-    function openProjector() {
-        if (!currentRoomId || !myPlayerId) return alert("Join a room first!");
-        // We pass 'owner=myPlayerId' so the projector knows which face to IGNORE
+    function updateProjectorLink() {
+        if (!currentRoomId || !myPlayerId) return;
+        
+        // Update the "href" of the link dynamically
+        const link = document.getElementById('projectorLink');
         const url = `${window.location.origin}/?mode=projector&room=${currentRoomId}&owner=${myPlayerId}`;
-        window.open(url, 'ProjectorWindow', 'width=800,height=600');
+        link.href = url;
+    }
+
+    function updateDebug(msg) {
+        const el = document.getElementById('projectorDebug');
+        if(el) el.innerText = msg;
     }
 
     // --- CAMERA & LOOP ---
@@ -157,12 +184,13 @@
       if (!video || !cameraStream || !currentRoomId) return;
 
       const canvas = document.getElementById('canvas');
+      // Set high quality for projector
       canvas.width = 640; canvas.height = 480;
       canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
 
       const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
       
-      // Server will add the senderId automatically, but we send it just in case
+      // Emit to server
       socket.emit('sendImage', { roomId: currentRoomId, image: dataUrl });
 
       const time = new Date().toLocaleTimeString();
@@ -192,26 +220,25 @@
 
     // --- SOCKET EVENTS ---
     
-    // IMAGE RECEIVED (The Filtering Logic)
+    // IMAGE RECEIVED
     socket.on('receiveImage', (data) => {
-        // data contains { image, senderId }
-        
+        // data = { image, senderId }
         const isProjector = (document.getElementById('projectorView').style.display === 'flex');
 
         if (isProjector) {
-            // IF PROJECTOR: Check if this image is from my owner
+            updateDebug(`Data Received from: ${data.senderId}`);
+
+            // IF THIS IMAGE IS FROM MY OWNER -> IGNORE
             if (data.senderId === projectorOwnerId) {
-                console.log("Ignoring image from myself (Owner)");
-                return; // Do nothing (don't show my own face on my projector)
+                updateDebug(`Ignored image from Owner (${data.senderId})`);
+                return; 
             }
-            // If it's from the opponent, show it!
-            document.getElementById('projectorMsg').style.display = 'none';
-            document.getElementById('projectorImage').src = data.image;
+
+            // SHOW OPPONENT IMAGE
+            updateDebug(`SHOWING image from Opponent (${data.senderId})`);
+            const img = document.getElementById('projectorImage');
+            img.src = data.image;
         } 
-        else {
-            // IF CONTROLLER: We don't really need to show the image here
-            // But we can show a status log if you want
-        }
     });
 
     // Standard Game Logic
@@ -249,6 +276,9 @@
       document.getElementById('roomTitle').innerText = room.name;
       document.getElementById('roomCode').innerText = room.id;
       document.getElementById('playerList').innerHTML = room.players.map(p => `<li>👤 ${p}</li>`).join('');
+      
+      // Update the Projector Link now that we have Room ID + Player ID
+      updateProjectorLink();
     });
 
     socket.on('playerUpdate', (players) => {
@@ -257,10 +287,9 @@
 
     socket.on('backToLobby', () => {
       currentRoomId = null;
-      stopSending(); // Stop the loop if they leave
+      stopSending(); 
       document.getElementById('roomScreen').classList.remove('active');
       document.getElementById('lobbyScreen').classList.add('active');
-      // Reset camera
       if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
       document.getElementById('videoPreview').style.display = 'none';
     });
