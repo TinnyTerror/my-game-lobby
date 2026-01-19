@@ -4,8 +4,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Multiplayer Game</title>
   <style>
-    body, html { margin: 0; padding: 0; font-family: sans-serif; height: 100%; background: transparent; }
-    .screen { display: none; padding: 20px; box-sizing: border-box; flex-direction: column; align-items: center; }
+    body, html { margin: 0; padding: 0; font-family: sans-serif; height: 100%; background: #f4f4f4; }
+    .screen { display: none; padding: 20px; flex-direction: column; align-items: center; }
     .active { display: flex; }
 
     .card { background: white; width: 100%; max-width: 400px; padding: 20px; border-radius: 12px;
@@ -14,182 +14,131 @@
     button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 10px; }
     .btn-primary { background: #0070f3; color: white; }
     .btn-camera { background: #28a745; color: white; }
-    .btn-exit { background: #ff4d4f; color: white; width: auto; padding: 5px 15px; font-size: 14px; }
-
-    .btn-fullscreen { background: #111; color: white; font-weight: bold; display: none; }
     .btn-stop { background: #ff4d4f; color: white; font-weight: bold; display: none; }
+    .btn-projector { background: #111; color: white; border: 1px solid #444; margin-top: 20px; }
 
-    .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     input { width: 90%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 10px; }
     ul { list-style: none; padding: 0; }
     li { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    
+    #videoPreview { width: 100%; border-radius: 8px; background: #000; display: none; margin-top:10px; }
+    #sendStatus { display: none; font-size: 12px; opacity: 0.75; margin-top: 8px; color: #0070f3; }
+    
     .hidden-section { display: none !important; }
 
-    #videoPreview { width: 100%; border-radius: 8px; background: #000; display: none; margin-top:10px; }
-
-    /* Inline preview area */
-    #incomingWrap {
-      display: none;
-      margin-top: 12px;
-      padding: 10px;
-      border: 1px solid #eee;
-      border-radius: 12px;
-      background: #fafafa;
-      text-align: left;
+    /* --- PROJECTOR MODE STYLES --- */
+    #projectorView { 
+        display: none; 
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+        background: black; 
+        justify-content: center; align-items: center; 
+        z-index: 9999;
     }
-    #incomingImg {
-      width: 100%;
-      display: block;
-      border-radius: 10px;
-      background: #000;
-      object-fit: contain;
-      max-height: 320px;
+    #projectorImage { 
+        max-width: 100%; max-height: 100%; 
+        object-fit: contain; 
     }
-    #incomingMeta {
-      font-size: 12px;
-      opacity: 0.75;
-      margin-top: 8px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-    }
-
-    /* Fullscreen overlay */
-    #overlay {
-      position: fixed;
-      inset: 0;
-      display: none;
-      flex-direction: column;
-      background: black;
-      z-index: 999999;
-    }
-    #overlayTop {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px;
-      gap: 10px;
-      background: rgba(0,0,0,0.35);
-    }
-    #overlayTitle {
-      color: white;
-      font-size: 13px;
-      opacity: 0.85;
-      text-align: left;
-    }
-    #overlayClose {
-      width: auto;
-      padding: 10px 14px;
-      background: #ff4d4f;
-      color: white;
-      font-weight: bold;
-      border-radius: 10px;
-      cursor: pointer;
-      border: none;
-      margin-top: 0;
-    }
-    #overlayBody {
-      flex: 1;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      overflow: hidden;
-    }
-    #overlayImg {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      background: black;
-    }
-
-    /* Small status line for sending loop */
-    #sendStatus {
-      display: none;
-      font-size: 12px;
-      opacity: 0.75;
-      margin-top: 8px;
-    }
+    #projectorMsg { color: #555; font-size: 24px; position: absolute; }
   </style>
 </head>
 <body>
 
-  <!-- Fullscreen overlay -->
-  <div id="overlay">
-    <div id="overlayTop">
-      <div id="overlayTitle">Fullscreen Snapshot (ESC to exit)</div>
-      <button id="overlayClose" onclick="closeOverlay()">Close ✕</button>
-    </div>
-    <div id="overlayBody">
-      <img id="overlayImg" alt="Fullscreen snapshot">
-    </div>
+  <div id="projectorView">
+      <p id="projectorMsg">Waiting for opponent...</p>
+      <img id="projectorImage" src="">
   </div>
 
-  <div id="lobbyScreen" class="screen active">
-    <div class="card">
-      <h2>🎮 Game Hub</h2>
-      <input type="text" id="playerIdInput" placeholder="Your Player ID..." />
+  <div id="mainInterface">
+      
+      <div id="lobbyScreen" class="screen active">
+        <div class="card">
+          <h2>🎮 Game Hub</h2>
+          <input type="text" id="playerIdInput" placeholder="Enter Your Name / ID" />
 
-      <div id="hostSection">
-        <hr>
-        <input type="text" id="gameName" placeholder="Room Name...">
-        <button class="btn-primary" onclick="hostGame()">Host Game</button>
-      </div>
+          <div id="hostSection">
+            <hr>
+            <input type="text" id="gameName" placeholder="Room Name...">
+            <button class="btn-primary" onclick="hostGame()">Host Game</button>
+          </div>
 
-      <div id="joinSection">
-        <hr>
-        <ul id="gameList"><li>Searching...</li></ul>
-      </div>
-    </div>
-  </div>
-
-  <div id="roomScreen" class="screen">
-    <div class="card">
-      <div class="header-row">
-        <h2 id="roomTitle">Room</h2>
-        <button class="btn-exit" onclick="leaveGame()">EXIT</button>
-      </div>
-
-      <p>ID: <b id="roomCode">...</b></p>
-
-      <button class="btn-camera" onclick="startCamera()">📷 Open Camera</button>
-      <video id="videoPreview" autoplay playsinline></video>
-
-      <!-- Replaces Snap & Send -->
-      <button id="startBtn" class="btn-primary" style="display:none;" onclick="startSending()">▶ Start (Send every 30s)</button>
-      <button id="stopBtn" class="btn-stop" onclick="stopSending()">■ Stop Sending</button>
-      <div id="sendStatus"></div>
-
-      <!-- Inline preview + fullscreen button -->
-      <div id="incomingWrap">
-        <img id="incomingImg" alt="Latest received snapshot" />
-        <div id="incomingMeta">
-          <span id="incomingTime">Latest snapshot</span>
-          <button id="fullscreenBtn" class="btn-fullscreen" onclick="openFullscreenImage()">⛶ FULLSCREEN IMAGE</button>
+          <div id="joinSection">
+            <hr>
+            <ul id="gameList"><li>Searching...</li></ul>
+          </div>
         </div>
       </div>
 
-      <canvas id="canvas" style="display:none;"></canvas>
+      <div id="roomScreen" class="screen">
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+             <h2 id="roomTitle">Room</h2>
+             <button style="width:auto; background:#ff4d4f; color:white; padding:5px 15px;" onclick="leaveGame()">EXIT</button>
+          </div>
 
-      <hr>
-      <h3>Players:</h3>
-      <ul id="playerList"></ul>
-    </div>
+          <p>ID: <b id="roomCode">...</b></p>
+
+          <button class="btn-projector" onclick="openProjector()">⛶ Launch Projector Window</button>
+          <p style="font-size:11px; color:#666; margin-top:5px;">(Drag this new window to your 2nd monitor)</p>
+          <hr>
+
+          <button class="btn-camera" onclick="startCamera()">📷 Open Camera</button>
+          <video id="videoPreview" autoplay playsinline></video>
+
+          <button id="startBtn" class="btn-primary" style="display:none;" onclick="startSending()">▶ Start Auto-Send (30s)</button>
+          <button id="stopBtn" class="btn-stop" onclick="stopSending()">■ Stop Sending</button>
+          
+          <div id="sendStatus"></div>
+
+          <canvas id="canvas" style="display:none;"></canvas>
+          
+          <hr>
+          <h3>Players:</h3>
+          <ul id="playerList"></ul>
+        </div>
+      </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
     let currentRoomId = null;
-
-    let lastReceivedImage = null;
-
-    // NEW: camera + sending loop state
     let cameraStream = null;
     let sendIntervalId = null;
+    let myPlayerId = null; // Store my own ID to filter images
+    let projectorOwnerId = null; // Used only if this window IS a projector
 
     const SEND_EVERY_MS = 30000; // 30 seconds
 
+    // --- INITIALIZATION ---
+    window.onload = function() {
+      const params = new URLSearchParams(window.location.search);
+      const mode = params.get('mode');
+      
+      // PROJECTOR MODE LOGIC
+      if (mode === 'projector') {
+          const room = params.get('room');
+          projectorOwnerId = params.get('owner'); // "Who owns this projector?"
+
+          document.getElementById('mainInterface').style.display = 'none';
+          document.getElementById('projectorView').style.display = 'flex';
+          
+          if (room) socket.emit('joinAsProjector', room);
+          return;
+      }
+
+      // CONTROLLER MODE LOGIC
+      if (mode === 'host') document.getElementById('joinSection').classList.add('hidden-section');
+      else if (mode === 'join') document.getElementById('hostSection').classList.add('hidden-section');
+    };
+
+    function openProjector() {
+        if (!currentRoomId || !myPlayerId) return alert("Join a room first!");
+        // We pass 'owner=myPlayerId' so the projector knows which face to IGNORE
+        const url = `${window.location.origin}/?mode=projector&room=${currentRoomId}&owner=${myPlayerId}`;
+        window.open(url, 'ProjectorWindow', 'width=800,height=600');
+    }
+
+    // --- CAMERA & LOOP ---
     function startCamera() {
       navigator.mediaDevices.getUserMedia({ video: true, audio: false })
         .then(stream => {
@@ -197,151 +146,88 @@
           const video = document.getElementById('videoPreview');
           video.srcObject = stream;
           video.style.display = 'block';
-
-          // Show start button, hide stop
           document.getElementById('startBtn').style.display = 'block';
           document.getElementById('stopBtn').style.display = 'none';
-          setSendStatus("");
         })
-        .catch(() => alert("Camera blocked! Check Carrd / browser permissions."));
+        .catch(() => alert("Camera blocked! Check permissions."));
     }
 
     function captureAndSendFrame() {
       const video = document.getElementById('videoPreview');
       if (!video || !cameraStream || !currentRoomId) return;
 
-      // If video isn't ready yet, skip this tick
-      if (video.readyState < 2) return; // HAVE_CURRENT_DATA
-
       const canvas = document.getElementById('canvas');
-      canvas.width = 320; canvas.height = 240;
-      canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
+      canvas.width = 640; canvas.height = 480;
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
 
       const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+      
+      // Server will add the senderId automatically, but we send it just in case
       socket.emit('sendImage', { roomId: currentRoomId, image: dataUrl });
 
-      setSendStatus("Last sent: " + new Date().toLocaleTimeString() + " (every 30s)");
+      const time = new Date().toLocaleTimeString();
+      document.getElementById('sendStatus').style.display = 'block';
+      document.getElementById('sendStatus').innerText = `Sent snapshot at ${time}`;
     }
 
     function startSending() {
-      if (!cameraStream) {
-        alert("Open the camera first.");
-        return;
-      }
-      if (!currentRoomId) {
-        alert("Join a room first.");
-        return;
-      }
-      if (sendIntervalId) return; // already running
+      if (!cameraStream) return alert("Open camera first.");
+      if (sendIntervalId) return;
 
-      // Immediately send one frame, then every 30s
-      captureAndSendFrame();
+      captureAndSendFrame(); // Send one immediately
       sendIntervalId = setInterval(captureAndSendFrame, SEND_EVERY_MS);
 
       document.getElementById('startBtn').style.display = 'none';
       document.getElementById('stopBtn').style.display = 'block';
-      setSendStatus("Sending started... (every 30s)");
+      document.getElementById('sendStatus').innerText = "Auto-sending active (Every 30s)...";
     }
 
     function stopSending() {
-      if (sendIntervalId) {
-        clearInterval(sendIntervalId);
-        sendIntervalId = null;
-      }
+      if (sendIntervalId) clearInterval(sendIntervalId);
+      sendIntervalId = null;
       document.getElementById('stopBtn').style.display = 'none';
-      document.getElementById('startBtn').style.display = cameraStream ? 'block' : 'none';
-      setSendStatus("Sending stopped.");
+      document.getElementById('startBtn').style.display = 'block';
+      document.getElementById('sendStatus').innerText = "Sending stopped.";
     }
 
-    function setSendStatus(text) {
-      const el = document.getElementById('sendStatus');
-      if (!text) {
-        el.style.display = 'none';
-        el.innerText = '';
-      } else {
-        el.style.display = 'block';
-        el.innerText = text;
-      }
-    }
+    // --- SOCKET EVENTS ---
+    
+    // IMAGE RECEIVED (The Filtering Logic)
+    socket.on('receiveImage', (data) => {
+        // data contains { image, senderId }
+        
+        const isProjector = (document.getElementById('projectorView').style.display === 'flex');
 
-    // Incoming images
-    socket.on('receiveImage', (imageData) => {
-      lastReceivedImage = imageData;
-
-      const wrap = document.getElementById('incomingWrap');
-      const img = document.getElementById('incomingImg');
-      const time = document.getElementById('incomingTime');
-      const fsBtn = document.getElementById('fullscreenBtn');
-
-      img.src = imageData;
-      wrap.style.display = 'block';
-      fsBtn.style.display = 'inline-block';
-      time.innerText = "Latest snapshot: " + new Date().toLocaleTimeString();
-
-      const overlay = document.getElementById('overlay');
-      if (overlay.style.display === 'flex') {
-        document.getElementById('overlayImg').src = imageData;
-      }
+        if (isProjector) {
+            // IF PROJECTOR: Check if this image is from my owner
+            if (data.senderId === projectorOwnerId) {
+                console.log("Ignoring image from myself (Owner)");
+                return; // Do nothing (don't show my own face on my projector)
+            }
+            // If it's from the opponent, show it!
+            document.getElementById('projectorMsg').style.display = 'none';
+            document.getElementById('projectorImage').src = data.image;
+        } 
+        else {
+            // IF CONTROLLER: We don't really need to show the image here
+            // But we can show a status log if you want
+        }
     });
 
-    // Fullscreen flow
-    async function openFullscreenImage() {
-      if (!lastReceivedImage) return;
-
-      const overlay = document.getElementById('overlay');
-      document.getElementById('overlayImg').src = lastReceivedImage;
-      overlay.style.display = 'flex';
-
-      try {
-        if (overlay.requestFullscreen) {
-          await overlay.requestFullscreen();
-        } else if (document.documentElement.requestFullscreen) {
-          await document.documentElement.requestFullscreen();
-        }
-      } catch (e) {
-        // If fullscreen is blocked by iframe permissions, overlay still works inside iframe.
-      }
-    }
-
-    async function closeOverlay() {
-      document.getElementById('overlay').style.display = 'none';
-      try {
-        if (document.fullscreenElement && document.exitFullscreen) {
-          await document.exitFullscreen();
-        }
-      } catch (e) {}
-    }
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeOverlay();
-    });
-
-    // Gate host/join
-    window.onload = function() {
-      const params = new URLSearchParams(window.location.search);
-      const mode = params.get('mode');
-      if (mode === 'host') document.getElementById('joinSection').classList.add('hidden-section');
-      else if (mode === 'join') document.getElementById('hostSection').classList.add('hidden-section');
-    };
-
+    // Standard Game Logic
     function getPlayerId() {
-      const pid = document.getElementById('playerIdInput').value.trim();
-      if (!pid) {
-        alert("Please enter a Player ID first.");
-        return null;
-      }
-      return pid;
+      return document.getElementById('playerIdInput').value.trim();
     }
 
     function hostGame() {
       const name = document.getElementById('gameName').value.trim();
-      const playerId = getPlayerId();
-      if (name && playerId) socket.emit('hostGame', { name, playerId });
+      myPlayerId = getPlayerId();
+      if (name && myPlayerId) socket.emit('hostGame', { name, playerId: myPlayerId });
     }
 
     function joinGame(id) {
-      const playerId = getPlayerId();
-      if (playerId) socket.emit('joinGame', { roomId: id, playerId });
+      myPlayerId = getPlayerId();
+      if (myPlayerId) socket.emit('joinGame', { roomId: id, playerId: myPlayerId });
     }
 
     function leaveGame() {
@@ -354,7 +240,6 @@
       Object.values(games).forEach(g => {
         list.innerHTML += `<li><b>${g.name}</b> <button class="btn-primary" style="width:auto; padding:5px;" onclick="joinGame('${g.id}')">Join</button></li>`;
       });
-      if (!Object.values(games).length) list.innerHTML = '<li>No rooms yet.</li>';
     });
 
     socket.on('joinedRoom', (room) => {
@@ -364,13 +249,6 @@
       document.getElementById('roomTitle').innerText = room.name;
       document.getElementById('roomCode').innerText = room.id;
       document.getElementById('playerList').innerHTML = room.players.map(p => `<li>👤 ${p}</li>`).join('');
-
-      // Reset incoming preview
-      lastReceivedImage = null;
-      document.getElementById('incomingWrap').style.display = 'none';
-      document.getElementById('incomingImg').src = '';
-      document.getElementById('fullscreenBtn').style.display = 'none';
-      closeOverlay();
     });
 
     socket.on('playerUpdate', (players) => {
@@ -379,32 +257,12 @@
 
     socket.on('backToLobby', () => {
       currentRoomId = null;
-
+      stopSending(); // Stop the loop if they leave
       document.getElementById('roomScreen').classList.remove('active');
       document.getElementById('lobbyScreen').classList.add('active');
-
-      // Stop sending loop
-      stopSending();
-
-      // Stop camera stream
-      const video = document.getElementById('videoPreview');
-      if (cameraStream) {
-        cameraStream.getTracks().forEach(t => t.stop());
-        cameraStream = null;
-      }
-      if (video.srcObject) video.srcObject = null;
-      video.style.display = 'none';
-
-      document.getElementById('startBtn').style.display = 'none';
-      document.getElementById('stopBtn').style.display = 'none';
-      setSendStatus("");
-
-      // Reset incoming preview
-      lastReceivedImage = null;
-      document.getElementById('incomingWrap').style.display = 'none';
-      document.getElementById('incomingImg').src = '';
-      document.getElementById('fullscreenBtn').style.display = 'none';
-      closeOverlay();
+      // Reset camera
+      if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+      document.getElementById('videoPreview').style.display = 'none';
     });
   </script>
 </body>
