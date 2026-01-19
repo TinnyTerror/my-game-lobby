@@ -4,13 +4,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Multiplayer Game</title>
   <style>
-    body, html { margin: 0; padding: 0; font-family: sans-serif; height: 100%; background: #f4f4f4; }
+    /* 1. RESET EVERYTHING so there are no white borders */
+    body, html { 
+        margin: 0; 
+        padding: 0; 
+        font-family: sans-serif; 
+        height: 100%; 
+        width: 100%;
+        background: black; 
+        overflow: hidden; /* No scrollbars */
+    }
     
     /* UTILS */
     .hidden-section { display: none !important; }
     
-    /* CONTROLS (Laptop) */
-    .screen { display: none; padding: 20px; flex-direction: column; align-items: center; }
+    /* --- CONTROLLER STYLES (Laptop) --- */
+    .screen { display: none; padding: 20px; flex-direction: column; align-items: center; height: 100%; overflow-y: auto; background: #f4f4f4; }
     .active { display: flex; }
     .card { background: white; width: 100%; max-width: 400px; padding: 20px; border-radius: 12px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #ddd; text-align: center; }
@@ -34,33 +43,48 @@
     #videoPreview { width: 100%; border-radius: 8px; background: #000; display: none; margin-top:10px; }
     #sendStatus { display: none; font-size: 12px; opacity: 0.75; margin-top: 8px; color: #0070f3; }
 
-    /* --- PROJECTOR MODE STYLES --- */
+    /* --- PROJECTOR MODE STYLES (THE FINAL FIX) --- */
     #projectorView { 
         display: none; 
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+        position: fixed; 
+        top: 0; left: 0; right: 0; bottom: 0;
+        width: 100%; height: 100%; 
         background: black; 
-        flex-direction: column;
-        justify-content: center; align-items: center; 
         z-index: 9999;
     }
+    
     #projectorImage { 
-        max-width: 100%; max-height: 100%; 
-        object-fit: contain; 
-        z-index: 2;
+        display: block;
+        width: 100vw;  /* 100% of Viewport Width */
+        height: 100vh; /* 100% of Viewport Height */
+        
+        /* THE MAGIC COMBINATION: */
+        object-fit: cover; 
+        /* 'cover' zooms the image until it covers the whole screen. No distortion. No black bars. */
+        
+        object-position: center center;
+        /* Ensures the middle of the image (the face) is always visible if edges get cropped. */
     }
+
     #projectorDebug { 
         color: #00ff00; font-family: monospace; font-size: 14px; 
         position: absolute; top: 10px; left: 10px; z-index: 10;
         background: rgba(0,0,0,0.5); padding: 10px;
-        pointer-events: none; /* Let clicks pass through */
+        pointer-events: none; 
+    }
+    #fullscreenHint {
+        color: rgba(255,255,255,0.5); font-size: 12px;
+        position: absolute; bottom: 10px; width: 100%; text-align: center;
+        pointer-events: none;
     }
   </style>
 </head>
 <body>
 
-  <div id="projectorView">
+  <div id="projectorView" ondblclick="toggleFullScreen()">
       <div id="projectorDebug">Initializing...</div>
       <img id="projectorImage" src="">
+      <div id="fullscreenHint">(Double-click screen for true fullscreen)</div>
   </div>
 
   <div id="mainInterface">
@@ -95,7 +119,7 @@
           <a id="projectorLink" href="#" target="_blank" class="btn-link-projector">
              ⛶ Open Projector Tab
           </a>
-          <p style="font-size:11px; color:#666; margin-top:5px;">(Click to open tab, then drag tab to 2nd monitor)</p>
+          <p style="font-size:11px; color:#666; margin-top:5px;">(Click link, drag tab to 2nd monitor, then double-click it)</p>
           <hr>
 
           <button class="btn-camera" onclick="startCamera()">📷 Open Camera</button>
@@ -136,11 +160,10 @@
           const room = params.get('room');
           projectorOwnerId = params.get('owner');
 
-          // Switch UI
           document.getElementById('mainInterface').style.display = 'none';
-          document.getElementById('projectorView').style.display = 'flex';
+          document.getElementById('projectorView').style.display = 'block'; 
           
-          updateDebug(`Projector Active.\nRoom: ${room}\nOwner: ${projectorOwnerId}\nWaiting for data...`);
+          updateDebug(`Projector Active.\nOwner: ${projectorOwnerId}\nWaiting for data...`);
           
           if (room) socket.emit('joinAsProjector', room);
           return;
@@ -153,8 +176,6 @@
 
     function updateProjectorLink() {
         if (!currentRoomId || !myPlayerId) return;
-        
-        // Update the "href" of the link dynamically
         const link = document.getElementById('projectorLink');
         const url = `${window.location.origin}/?mode=projector&room=${currentRoomId}&owner=${myPlayerId}`;
         link.href = url;
@@ -163,6 +184,20 @@
     function updateDebug(msg) {
         const el = document.getElementById('projectorDebug');
         if(el) el.innerText = msg;
+    }
+
+    // --- FULLSCREEN TOGGLE ---
+    function toggleFullScreen() {
+        const doc = window.document;
+        const docEl = doc.documentElement;
+        const requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
+        const cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+
+        if(!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
+            requestFullScreen.call(docEl);
+        } else {
+            cancelFullScreen.call(doc);
+        }
     }
 
     // --- CAMERA & LOOP ---
@@ -184,13 +219,11 @@
       if (!video || !cameraStream || !currentRoomId) return;
 
       const canvas = document.getElementById('canvas');
-      // Set high quality for projector
-      canvas.width = 640; canvas.height = 480;
+      canvas.width = 1280; canvas.height = 720;
       canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
 
       const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
       
-      // Emit to server
       socket.emit('sendImage', { roomId: currentRoomId, image: dataUrl });
 
       const time = new Date().toLocaleTimeString();
@@ -201,10 +234,8 @@
     function startSending() {
       if (!cameraStream) return alert("Open camera first.");
       if (sendIntervalId) return;
-
-      captureAndSendFrame(); // Send one immediately
+      captureAndSendFrame(); 
       sendIntervalId = setInterval(captureAndSendFrame, SEND_EVERY_MS);
-
       document.getElementById('startBtn').style.display = 'none';
       document.getElementById('stopBtn').style.display = 'block';
       document.getElementById('sendStatus').innerText = "Auto-sending active (Every 30s)...";
@@ -219,32 +250,22 @@
     }
 
     // --- SOCKET EVENTS ---
-    
-    // IMAGE RECEIVED
     socket.on('receiveImage', (data) => {
-        // data = { image, senderId }
-        const isProjector = (document.getElementById('projectorView').style.display === 'flex');
-
-        if (isProjector) {
-            updateDebug(`Data Received from: ${data.senderId}`);
-
-            // IF THIS IMAGE IS FROM MY OWNER -> IGNORE
+        if (document.getElementById('projectorView').style.display === 'block') {
             if (data.senderId === projectorOwnerId) {
                 updateDebug(`Ignored image from Owner (${data.senderId})`);
                 return; 
             }
 
-            // SHOW OPPONENT IMAGE
             updateDebug(`SHOWING image from Opponent (${data.senderId})`);
             const img = document.getElementById('projectorImage');
             img.src = data.image;
+            document.getElementById('fullscreenHint').style.display = 'none';
         } 
     });
 
     // Standard Game Logic
-    function getPlayerId() {
-      return document.getElementById('playerIdInput').value.trim();
-    }
+    function getPlayerId() { return document.getElementById('playerIdInput').value.trim(); }
 
     function hostGame() {
       const name = document.getElementById('gameName').value.trim();
@@ -257,9 +278,7 @@
       if (myPlayerId) socket.emit('joinGame', { roomId: id, playerId: myPlayerId });
     }
 
-    function leaveGame() {
-      if (currentRoomId) socket.emit('leaveGame', currentRoomId);
-    }
+    function leaveGame() { if (currentRoomId) socket.emit('leaveGame', currentRoomId); }
 
     socket.on('updateGameList', (games) => {
       const list = document.getElementById('gameList');
@@ -276,8 +295,6 @@
       document.getElementById('roomTitle').innerText = room.name;
       document.getElementById('roomCode').innerText = room.id;
       document.getElementById('playerList').innerHTML = room.players.map(p => `<li>👤 ${p}</li>`).join('');
-      
-      // Update the Projector Link now that we have Room ID + Player ID
       updateProjectorLink();
     });
 
