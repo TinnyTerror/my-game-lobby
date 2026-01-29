@@ -4,203 +4,274 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Multiplayer Game</title>
   <style>
-    /* 1. RESET EVERYTHING so there are no white borders */
-    body, html { 
-        margin: 0; 
-        padding: 0; 
-        font-family: sans-serif; 
-        height: 100%; 
-        width: 100%;
-        background: black; 
-        overflow: hidden; /* No scrollbars */
+    body, html {
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+      height: 100%;
+      width: 100%;
+      background: black;
+      overflow: hidden;
     }
-    
-    /* UTILS */
-    .hidden-section { display: none !important; }
-    
-    /* --- CONTROLLER STYLES (Laptop) --- */
-    .screen { display: none; padding: 20px; flex-direction: column; align-items: center; height: 100%; overflow-y: auto; background: #f4f4f4; }
-    .active { display: flex; }
-    .card { background: white; width: 100%; max-width: 400px; padding: 20px; border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #ddd; text-align: center; }
 
-    button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+    .hidden-section { display: none !important; }
+
+    /* Controller UI */
+    .screen {
+      display: none;
+      padding: 20px;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+      overflow-y: auto;
+      background: #f4f4f4;
+      box-sizing: border-box;
+    }
+    .active { display: flex; }
+
+    .card {
+      background: white;
+      width: 100%;
+      max-width: 400px;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      border: 1px solid #ddd;
+      text-align: center;
+      box-sizing: border-box;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
     .btn-primary { background: #0070f3; color: white; }
     .btn-camera { background: #28a745; color: white; }
     .btn-stop { background: #ff4d4f; color: white; font-weight: bold; display: none; }
-    
-    /* The Link that acts like a Button */
-    .btn-link-projector { 
-        display: block; width: 100%; padding: 12px; margin-top: 15px;
-        background: #111; color: white; text-decoration: none; 
-        border-radius: 8px; text-align: center; font-weight: bold; box-sizing: border-box;
+
+    .btn-link-projector {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      margin-top: 15px;
+      background: #111;
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: bold;
+      box-sizing: border-box;
     }
 
-    input { width: 90%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 10px; }
+    input {
+      width: 90%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+
     ul { list-style: none; padding: 0; }
     li { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-    
+
     #videoPreview { width: 100%; border-radius: 8px; background: #000; display: none; margin-top:10px; }
     #sendStatus { display: none; font-size: 12px; opacity: 0.75; margin-top: 8px; color: #0070f3; }
 
-    /* --- PROJECTOR MODE STYLES (THE FINAL FIX) --- */
-    #projectorView { 
-        display: none; 
-        position: fixed; 
-        top: 0; left: 0; right: 0; bottom: 0;
-        width: 100%; height: 100%; 
-        background: black; 
-        z-index: 9999;
-    }
-    
-    #projectorImage { 
-        display: block;
-        width: 100vw;  /* 100% of Viewport Width */
-        height: 100vh; /* 100% of Viewport Height */
-        
-        /* THE MAGIC COMBINATION: */
-        object-fit: cover; 
-        /* 'cover' zooms the image until it covers the whole screen. No distortion. No black bars. */
-        
-        object-position: center center;
-        /* Ensures the middle of the image (the face) is always visible if edges get cropped. */
+    /* Projector Mode */
+    #projectorView {
+      display: none;
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      background: black;
+      z-index: 9999;
     }
 
-    #projectorDebug { 
-        color: #00ff00; font-family: monospace; font-size: 14px; 
-        position: absolute; top: 10px; left: 10px; z-index: 10;
-        background: rgba(0,0,0,0.5); padding: 10px;
-        pointer-events: none; 
+    #projectorImage {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      object-position: center center;
     }
+
+    #projectorDebug {
+      color: #00ff00;
+      font-family: monospace;
+      font-size: 14px;
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      background: rgba(0,0,0,0.5);
+      padding: 10px;
+      pointer-events: none;
+      white-space: pre-line;
+    }
+
     #fullscreenHint {
-        color: rgba(255,255,255,0.5); font-size: 12px;
-        position: absolute; bottom: 10px; width: 100%; text-align: center;
-        pointer-events: none;
+      color: rgba(255,255,255,0.5);
+      font-size: 12px;
+      position: absolute;
+      bottom: 10px;
+      width: 100%;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    /* NEW: Projector blanking overlay (kills infinite mirror) */
+    #projectorBlank {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: black; /* recommend black over white */
+      z-index: 10000;
     }
   </style>
 </head>
 <body>
 
   <div id="projectorView" ondblclick="toggleFullScreen()">
-      <div id="projectorDebug">Initializing...</div>
-      <img id="projectorImage" src="">
-      <div id="fullscreenHint">(Double-click screen for true fullscreen)</div>
+    <div id="projectorDebug">Initializing...</div>
+    <img id="projectorImage" src="">
+    <div id="fullscreenHint">(Double-click screen for true fullscreen)</div>
   </div>
 
+  <div id="projectorBlank"></div>
+
   <div id="mainInterface">
-      
-      <div id="lobbyScreen" class="screen active">
-        <div class="card">
-          <h2>🎮 Game Hub</h2>
-          <input type="text" id="playerIdInput" placeholder="Enter Your Name / ID" />
+    <div id="lobbyScreen" class="screen active">
+      <div class="card">
+        <h2>🎮 Game Hub</h2>
+        <input type="text" id="playerIdInput" placeholder="Enter Your Name / ID" />
 
-          <div id="hostSection">
-            <hr>
-            <input type="text" id="gameName" placeholder="Room Name...">
-            <button class="btn-primary" onclick="hostGame()">Host Game</button>
-          </div>
+        <div id="hostSection">
+          <hr>
+          <input type="text" id="gameName" placeholder="Room Name...">
+          <button class="btn-primary" onclick="hostGame()">Host Game</button>
+        </div>
 
-          <div id="joinSection">
-            <hr>
-            <ul id="gameList"><li>Searching...</li></ul>
-          </div>
+        <div id="joinSection">
+          <hr>
+          <ul id="gameList"><li>Searching...</li></ul>
         </div>
       </div>
+    </div>
 
-      <div id="roomScreen" class="screen">
-        <div class="card">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-             <h2 id="roomTitle">Room</h2>
-             <button style="width:auto; background:#ff4d4f; color:white; padding:5px 15px;" onclick="leaveGame()">EXIT</button>
-          </div>
-
-          <p>ID: <b id="roomCode">...</b></p>
-
-          <a id="projectorLink" href="#" target="_blank" class="btn-link-projector">
-             ⛶ Open Projector Tab
-          </a>
-          <p style="font-size:11px; color:#666; margin-top:5px;">(Click link, drag tab to 2nd monitor, then double-click it)</p>
-          <hr>
-
-          <button class="btn-camera" onclick="startCamera()">📷 Open Camera</button>
-          <video id="videoPreview" autoplay playsinline></video>
-
-          <button id="startBtn" class="btn-primary" style="display:none;" onclick="startSending()">▶ Start Auto-Send (30s)</button>
-          <button id="stopBtn" class="btn-stop" onclick="stopSending()">■ Stop Sending</button>
-          
-          <div id="sendStatus"></div>
-
-          <canvas id="canvas" style="display:none;"></canvas>
-          
-          <hr>
-          <h3>Players:</h3>
-          <ul id="playerList"></ul>
+    <div id="roomScreen" class="screen">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h2 id="roomTitle">Room</h2>
+          <button style="width:auto; background:#ff4d4f; color:white; padding:5px 15px;" onclick="leaveGame()">EXIT</button>
         </div>
+
+        <p>ID: <b id="roomCode">...</b></p>
+
+        <a id="projectorLink" href="#" target="_blank" class="btn-link-projector">
+          ⛶ Open Projector Tab
+        </a>
+        <p style="font-size:11px; color:#666; margin-top:5px;">(Click link, drag tab to 2nd monitor, then double-click it)</p>
+        <hr>
+
+        <button class="btn-camera" onclick="startCamera()">📷 Open Camera</button>
+        <video id="videoPreview" autoplay playsinline></video>
+
+        <button id="startBtn" class="btn-primary" style="display:none;" onclick="startSending()">▶ Start Auto-Send (30s)</button>
+        <button id="stopBtn" class="btn-stop" onclick="stopSending()">■ Stop Sending</button>
+
+        <div id="sendStatus"></div>
+
+        <canvas id="canvas" style="display:none;"></canvas>
+
+        <hr>
+        <h3>Players:</h3>
+        <ul id="playerList"></ul>
       </div>
+    </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
+
     let currentRoomId = null;
     let cameraStream = null;
     let sendIntervalId = null;
-    let myPlayerId = null; 
+
+    let myPlayerId = null;
+
+    // Projector mode state
+    let isProjectorMode = false;
     let projectorOwnerId = null;
+    let projectorRoomId = null;
 
     const SEND_EVERY_MS = 30000; // 30 seconds
+    const STAGGER_JOIN_MS = 15000; // join waits 15s to de-sync
+    const BLANK_BEFORE_MS = 220;  // projector blank duration before capture
+    const BLANK_AFTER_MS  = 80;   // keep blank a tiny bit after capture
 
-    // --- INITIALIZATION ---
+    // --- INIT ---
     window.onload = function() {
       const params = new URLSearchParams(window.location.search);
       const mode = params.get('mode');
-      
-      // PROJECTOR MODE LOGIC
-      if (mode === 'projector') {
-          const room = params.get('room');
-          projectorOwnerId = params.get('owner');
 
-          document.getElementById('mainInterface').style.display = 'none';
-          document.getElementById('projectorView').style.display = 'block'; 
-          
-          updateDebug(`Projector Active.\nOwner: ${projectorOwnerId}\nWaiting for data...`);
-          
-          if (room) socket.emit('joinAsProjector', room);
-          return;
+      // PROJECTOR MODE
+      if (mode === 'projector') {
+        isProjectorMode = true;
+        projectorRoomId = params.get('room');
+        projectorOwnerId = params.get('owner');
+
+        document.getElementById('mainInterface').style.display = 'none';
+        document.getElementById('projectorView').style.display = 'block';
+
+        updateDebug(`Projector Active\nOwner: ${projectorOwnerId}\nRoom: ${projectorRoomId}\nWaiting for data...`);
+
+        if (projectorRoomId && projectorOwnerId) {
+          socket.emit('joinAsProjector', { roomId: projectorRoomId, ownerId: projectorOwnerId });
+        }
+        return;
       }
 
-      // CONTROLLER MODE LOGIC
+      // CONTROLLER MODE
       if (mode === 'host') document.getElementById('joinSection').classList.add('hidden-section');
       else if (mode === 'join') document.getElementById('hostSection').classList.add('hidden-section');
     };
 
     function updateProjectorLink() {
-        if (!currentRoomId || !myPlayerId) return;
-        const link = document.getElementById('projectorLink');
-        const url = `${window.location.origin}/?mode=projector&room=${currentRoomId}&owner=${myPlayerId}`;
-        link.href = url;
+      if (!currentRoomId || !myPlayerId) return;
+      const link = document.getElementById('projectorLink');
+      const url = `${window.location.origin}/?mode=projector&room=${encodeURIComponent(currentRoomId)}&owner=${encodeURIComponent(myPlayerId)}`;
+      link.href = url;
     }
 
     function updateDebug(msg) {
-        const el = document.getElementById('projectorDebug');
-        if(el) el.innerText = msg;
+      const el = document.getElementById('projectorDebug');
+      if (el) el.innerText = msg;
     }
 
-    // --- FULLSCREEN TOGGLE ---
+    // --- FULLSCREEN TOGGLE (Projector Tab) ---
     function toggleFullScreen() {
-        const doc = window.document;
-        const docEl = doc.documentElement;
-        const requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
-        const cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+      const doc = window.document;
+      const docEl = doc.documentElement;
 
-        if(!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
-            requestFullScreen.call(docEl);
-        } else {
-            cancelFullScreen.call(doc);
-        }
+      const requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
+      const cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+
+      if (!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
+        requestFullScreen && requestFullScreen.call(docEl);
+      } else {
+        cancelFullScreen && cancelFullScreen.call(doc);
+      }
     }
 
-    // --- CAMERA & LOOP ---
+    // --- CAMERA ---
     function startCamera() {
       navigator.mediaDevices.getUserMedia({ video: true, audio: false })
         .then(stream => {
@@ -214,57 +285,128 @@
         .catch(() => alert("Camera blocked! Check permissions."));
     }
 
+    function setStatus(msg) {
+      const el = document.getElementById('sendStatus');
+      el.style.display = msg ? 'block' : 'none';
+      el.innerText = msg || '';
+    }
+
+    /**
+     * Blank the OWNER'S projector tab before capture.
+     * This helps prevent the camera from re-capturing the projected opponent image.
+     */
+    function blankMyProjector(on) {
+      if (!currentRoomId || !myPlayerId) return;
+      socket.emit('setProjectorBlank', { roomId: currentRoomId, ownerId: myPlayerId, blank: !!on });
+    }
+
     function captureAndSendFrame() {
       const video = document.getElementById('videoPreview');
       if (!video || !cameraStream || !currentRoomId) return;
 
+      // Use a moderate resolution. 1280x720 is OK, but heavy.
       const canvas = document.getElementById('canvas');
-      canvas.width = 1280; canvas.height = 720;
-      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.width = 1280;
+      canvas.height = 720;
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
       const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
-      
       socket.emit('sendImage', { roomId: currentRoomId, image: dataUrl });
 
-      const time = new Date().toLocaleTimeString();
-      document.getElementById('sendStatus').style.display = 'block';
-      document.getElementById('sendStatus').innerText = `Sent snapshot at ${time}`;
+      setStatus(`Sent snapshot at ${new Date().toLocaleTimeString()}`);
+    }
+
+    /**
+     * Capture flow with blanking timing:
+     * 1) blank projector (black)
+     * 2) wait a beat
+     * 3) capture + send
+     * 4) wait a tiny beat
+     * 5) unblank projector
+     */
+    function captureAndSendWithBlank() {
+      if (!cameraStream || !currentRoomId) return;
+
+      blankMyProjector(true);
+
+      setTimeout(() => {
+        captureAndSendFrame();
+
+        setTimeout(() => {
+          blankMyProjector(false);
+        }, BLANK_AFTER_MS);
+
+      }, BLANK_BEFORE_MS);
     }
 
     function startSending() {
       if (!cameraStream) return alert("Open camera first.");
+      if (!currentRoomId) return alert("Join a room first.");
       if (sendIntervalId) return;
-      captureAndSendFrame(); 
-      sendIntervalId = setInterval(captureAndSendFrame, SEND_EVERY_MS);
-      document.getElementById('startBtn').style.display = 'none';
-      document.getElementById('stopBtn').style.display = 'block';
-      document.getElementById('sendStatus').innerText = "Auto-sending active (Every 30s)...";
+
+      const params = new URLSearchParams(window.location.search);
+      const mode = params.get('mode');
+
+      const initialDelay = (mode === 'join') ? STAGGER_JOIN_MS : 0;
+
+      setStatus(initialDelay ? `Starting in ${initialDelay/1000}s (staggered)...` : "Starting...");
+
+      setTimeout(() => {
+        captureAndSendWithBlank(); // immediate first shot
+        sendIntervalId = setInterval(captureAndSendWithBlank, SEND_EVERY_MS);
+
+        document.getElementById('startBtn').style.display = 'none';
+        document.getElementById('stopBtn').style.display = 'block';
+        setStatus(`Auto-sending active (every 30s). Started at ${new Date().toLocaleTimeString()}`);
+      }, initialDelay);
     }
 
     function stopSending() {
       if (sendIntervalId) clearInterval(sendIntervalId);
       sendIntervalId = null;
+
       document.getElementById('stopBtn').style.display = 'none';
-      document.getElementById('startBtn').style.display = 'block';
-      document.getElementById('sendStatus').innerText = "Sending stopped.";
+      document.getElementById('startBtn').style.display = cameraStream ? 'block' : 'none';
+
+      setStatus("Sending stopped.");
+      blankMyProjector(false);
     }
 
     // --- SOCKET EVENTS ---
-    socket.on('receiveImage', (data) => {
-        if (document.getElementById('projectorView').style.display === 'block') {
-            if (data.senderId === projectorOwnerId) {
-                updateDebug(`Ignored image from Owner (${data.senderId})`);
-                return; 
-            }
 
-            updateDebug(`SHOWING image from Opponent (${data.senderId})`);
-            const img = document.getElementById('projectorImage');
-            img.src = data.image;
-            document.getElementById('fullscreenHint').style.display = 'none';
-        } 
+    // Server error messages (duplicate player ID etc.)
+    socket.on('errorMsg', (msg) => {
+      alert(msg);
     });
 
-    // Standard Game Logic
+    // Projector blank command (server targets owner’s projector sockets)
+    socket.on('projectorBlank', ({ blank }) => {
+      if (!isProjectorMode) return;
+      document.getElementById('projectorBlank').style.display = blank ? 'block' : 'none';
+    });
+
+    // Receive snapshots (projector shows opponent only)
+    socket.on('receiveImage', (data) => {
+      if (!isProjectorMode) return;
+
+      // Ignore images from the projector owner (so you only display opponent)
+      if (data.senderId === projectorOwnerId) {
+        updateDebug(`Ignored image from Owner (${data.senderId})`);
+        return;
+      }
+
+      updateDebug(`SHOWING image from Opponent (${data.senderId})`);
+
+      const img = document.getElementById('projectorImage');
+      img.src = data.image;
+
+      // first image received: hide hint
+      document.getElementById('fullscreenHint').style.display = 'none';
+    });
+
+    // --- Standard Game Logic ---
     function getPlayerId() { return document.getElementById('playerIdInput').value.trim(); }
 
     function hostGame() {
@@ -278,7 +420,9 @@
       if (myPlayerId) socket.emit('joinGame', { roomId: id, playerId: myPlayerId });
     }
 
-    function leaveGame() { if (currentRoomId) socket.emit('leaveGame', currentRoomId); }
+    function leaveGame() {
+      if (currentRoomId) socket.emit('leaveGame', currentRoomId);
+    }
 
     socket.on('updateGameList', (games) => {
       const list = document.getElementById('gameList');
@@ -286,15 +430,19 @@
       Object.values(games).forEach(g => {
         list.innerHTML += `<li><b>${g.name}</b> <button class="btn-primary" style="width:auto; padding:5px;" onclick="joinGame('${g.id}')">Join</button></li>`;
       });
+      if (!Object.values(games).length) list.innerHTML = '<li>No rooms yet.</li>';
     });
 
     socket.on('joinedRoom', (room) => {
       currentRoomId = room.id;
+
       document.getElementById('lobbyScreen').classList.remove('active');
       document.getElementById('roomScreen').classList.add('active');
+
       document.getElementById('roomTitle').innerText = room.name;
       document.getElementById('roomCode').innerText = room.id;
       document.getElementById('playerList').innerHTML = room.players.map(p => `<li>👤 ${p}</li>`).join('');
+
       updateProjectorLink();
     });
 
@@ -304,11 +452,22 @@
 
     socket.on('backToLobby', () => {
       currentRoomId = null;
-      stopSending(); 
+
+      stopSending();
+
       document.getElementById('roomScreen').classList.remove('active');
       document.getElementById('lobbyScreen').classList.add('active');
+
       if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
-      document.getElementById('videoPreview').style.display = 'none';
+      cameraStream = null;
+
+      const video = document.getElementById('videoPreview');
+      if (video) {
+        video.style.display = 'none';
+        video.srcObject = null;
+      }
+
+      setStatus("");
     });
   </script>
 </body>
