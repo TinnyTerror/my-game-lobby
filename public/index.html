@@ -32,7 +32,7 @@
     .card {
       background: white;
       width: 100%;
-      max-width: 400px;
+      max-width: 420px;
       padding: 20px;
       border-radius: 12px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
@@ -54,7 +54,7 @@
     .btn-camera { background: #28a745; color: white; }
     .btn-stop { background: #ff4d4f; color: white; font-weight: bold; display: none; }
 
-    /* NEW: Calibration toggle button */
+    /* Calibration mode toggle button */
     .btn-calib {
       background: #111;
       color: white;
@@ -78,6 +78,50 @@
       font-weight: bold;
       box-sizing: border-box;
     }
+
+    /* NEW: Calibration panel */
+    #calibPanel {
+      display: none;
+      margin-top: 10px;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid #eee;
+      background: #fafafa;
+      text-align: left;
+    }
+    #calibPanel h3 {
+      margin: 0 0 10px 0;
+      font-size: 14px;
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0;
+      font-size: 13px;
+    }
+    .pill {
+      font-size: 12px;
+      background: #eee;
+      border-radius: 999px;
+      padding: 4px 8px;
+      white-space: nowrap;
+    }
+    .toggleBtn {
+      width: auto;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: #0070f3;
+      color: white;
+      font-weight: bold;
+      margin-top: 0;
+    }
+    .toggleBtn.off {
+      background: #ddd;
+      color: #333;
+    }
+    input[type="range"] { width: 180px; }
 
     input {
       width: 90%;
@@ -130,6 +174,18 @@
       width: auto;
       height: auto;
       object-fit: contain;
+      z-index: 1;
+    }
+
+    /* Grid overlay (projector only, no buttons) */
+    #projectorGridCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 9999; /* above image */
+      pointer-events: none;
+      display: none;
     }
 
     #projectorDebug {
@@ -139,7 +195,7 @@
       position: absolute;
       top: 10px;
       left: 10px;
-      z-index: 10;
+      z-index: 10001;
       background: rgba(0,0,0,0.5);
       padding: 10px;
       pointer-events: none;
@@ -154,6 +210,7 @@
       width: 100%;
       text-align: center;
       pointer-events: none;
+      z-index: 10001;
     }
 
     /* Projector blanking overlay */
@@ -162,7 +219,7 @@
       position: fixed;
       inset: 0;
       background: black;
-      z-index: 10000;
+      z-index: 10000; /* above grid & image */
     }
   </style>
 </head>
@@ -171,6 +228,7 @@
   <div id="projectorView" ondblclick="toggleFullScreen()">
     <div id="projectorDebug">Initializing...</div>
     <img id="projectorImage" src="">
+    <canvas id="projectorGridCanvas"></canvas>
     <div id="fullscreenHint">(Double-click screen for true fullscreen)</div>
   </div>
 
@@ -216,8 +274,27 @@
         <button id="startBtn" class="btn-primary" style="display:none;" onclick="startSending()">▶ Start Auto-Send (30s)</button>
         <button id="stopBtn" class="btn-stop" onclick="stopSending()">■ Stop Sending</button>
 
-        <!-- NEW: Calibration mode toggle next to Start/Stop area -->
         <button id="calibBtn" class="btn-calib" onclick="toggleCalibrationMode()">🎯 Calibration Mode: OFF</button>
+
+        <!-- NEW: Calibration settings panel -->
+        <div id="calibPanel">
+          <h3>Calibration Tools</h3>
+
+          <div class="row">
+            <div>Grid</div>
+            <button id="gridToggleBtn" class="toggleBtn off" onclick="toggleGrid()">OFF</button>
+          </div>
+
+          <div class="row">
+            <div>Grid Spacing</div>
+            <input id="gridSpacing" type="range" min="5" max="400" value="50" oninput="onGridSpacing(this.value)">
+            <span id="gridSpacingVal" class="pill">50px</span>
+          </div>
+
+          <div style="font-size:11px; opacity:0.8; line-height:1.35;">
+            Tip: Turn Calibration ON so the projector shows YOUR camera view, then adjust grid spacing to match a ruler.
+          </div>
+        </div>
 
         <div id="sendStatus"></div>
 
@@ -245,7 +322,7 @@
     let projectorOwnerId = null;
     let projectorRoomId = null;
 
-    // NEW: calibration mode state (controller side)
+    // Controller calibration mode
     let calibrationMode = false;
 
     const SEND_EVERY_MS = 30000;
@@ -254,6 +331,16 @@
     // Blanking (disabled while calibration mode is ON)
     const BLANK_BEFORE_MS = 220;
     const BLANK_AFTER_MS  = 80;
+
+    // Grid settings (controller -> projector)
+    const GRID_ENABLED_KEY = "wg_grid_enabled";
+    const GRID_SPACING_KEY = "wg_grid_spacing";
+    let gridEnabled = false;
+    let gridSpacing = 50;
+
+    // Projector grid state
+    let projectorGridEnabled = false;
+    let projectorGridSpacing = 50;
 
     // --- INIT ---
     window.onload = function() {
@@ -271,6 +358,8 @@
 
         updateDebug(`Projector Active\nOwner: ${projectorOwnerId}\nRoom: ${projectorRoomId}\nMode: normal\nWaiting for data...`);
 
+        initProjectorGridCanvas();
+
         if (projectorRoomId && projectorOwnerId) {
           socket.emit('joinAsProjector', { roomId: projectorRoomId, ownerId: projectorOwnerId });
         }
@@ -280,6 +369,10 @@
       // CONTROLLER MODE
       if (mode === 'host') document.getElementById('joinSection').classList.add('hidden-section');
       else if (mode === 'join') document.getElementById('hostSection').classList.add('hidden-section');
+
+      // load grid prefs
+      loadGridPrefs();
+      syncGridPanelUI();
     };
 
     function updateProjectorLink() {
@@ -327,33 +420,55 @@
           document.getElementById('startBtn').style.display = 'block';
           document.getElementById('stopBtn').style.display = 'none';
 
-          // Show calibration button once camera is available (and we’re in a room soon)
-          const calibBtn = document.getElementById('calibBtn');
-          calibBtn.style.display = 'block';
+          // Show calibration UI button
+          document.getElementById('calibBtn').style.display = 'block';
         })
         .catch(() => alert("Camera blocked! Check permissions."));
     }
 
-    // --- Projector control from controller ---
+    // --- Projector controls from controller ---
     function setProjectorViewMode(mode) {
       if (!currentRoomId || !myPlayerId) return;
       socket.emit('setProjectorViewMode', { roomId: currentRoomId, ownerId: myPlayerId, mode });
+    }
+
+    function setProjectorGrid(enabled, spacing) {
+      if (!currentRoomId || !myPlayerId) return;
+      socket.emit('setProjectorGrid', {
+        roomId: currentRoomId,
+        ownerId: myPlayerId,
+        enabled: !!enabled,
+        spacing: parseInt(spacing, 10)
+      });
     }
 
     function toggleCalibrationMode() {
       calibrationMode = !calibrationMode;
 
       const btn = document.getElementById('calibBtn');
+      const panel = document.getElementById('calibPanel');
+
       if (calibrationMode) {
         btn.classList.add('on');
         btn.innerText = "🎯 Calibration Mode: ON";
-        setStatus("Calibration ON:\nProjector shows YOUR camera feed.\nBlanking disabled.\n(Use this to align/measure.)");
+        panel.style.display = 'block';
+
+        setStatus("Calibration ON:\nProjector shows YOUR camera feed.\nBlanking disabled.\nAdjust grid settings below.");
         setProjectorViewMode('calibrate');
+
+        // When entering calibration, push current grid settings to projector
+        setProjectorGrid(gridEnabled, gridSpacing);
+
       } else {
         btn.classList.remove('on');
         btn.innerText = "🎯 Calibration Mode: OFF";
+        panel.style.display = 'none';
+
         setStatus("Calibration OFF:\nProjector shows opponent again.\nBlanking enabled.");
         setProjectorViewMode('normal');
+
+        // Turn off grid when leaving calibration (keeps opponent view clean)
+        setProjectorGrid(false, gridSpacing);
       }
     }
 
@@ -384,7 +499,7 @@
     function captureAndSendWithBlank() {
       if (!cameraStream || !currentRoomId) return;
 
-      // During calibration we do NOT blank (you want to see the feedback)
+      // During calibration we do NOT blank (you want to see what the camera sees)
       if (calibrationMode) {
         captureAndSendFrame();
         return;
@@ -416,9 +531,6 @@
         document.getElementById('startBtn').style.display = 'none';
         document.getElementById('stopBtn').style.display = 'block';
 
-        // show calibration button (already shown after camera, but safe)
-        document.getElementById('calibBtn').style.display = 'block';
-
         setStatus(`Auto-sending active (every 30s). Started at ${new Date().toLocaleTimeString()}`);
       }, initialDelay);
     }
@@ -434,8 +546,124 @@
       blankMyProjector(false);
     }
 
-    // --- SOCKET EVENTS ---
+    // --- Calibration grid panel logic (controller side) ---
+    function loadGridPrefs() {
+      const e = localStorage.getItem(GRID_ENABLED_KEY);
+      const s = localStorage.getItem(GRID_SPACING_KEY);
 
+      gridEnabled = (e === "true");
+      const parsed = parseInt(s || "50", 10);
+      gridSpacing = Number.isFinite(parsed) ? Math.max(5, Math.min(400, parsed)) : 50;
+    }
+
+    function saveGridPrefs() {
+      localStorage.setItem(GRID_ENABLED_KEY, gridEnabled ? "true" : "false");
+      localStorage.setItem(GRID_SPACING_KEY, String(gridSpacing));
+    }
+
+    function syncGridPanelUI() {
+      const t = document.getElementById('gridToggleBtn');
+      const slider = document.getElementById('gridSpacing');
+      const val = document.getElementById('gridSpacingVal');
+
+      if (t) {
+        t.classList.toggle('off', !gridEnabled);
+        t.innerText = gridEnabled ? "ON" : "OFF";
+      }
+      if (slider) slider.value = String(gridSpacing);
+      if (val) val.innerText = `${gridSpacing}px`;
+    }
+
+    function toggleGrid() {
+      gridEnabled = !gridEnabled;
+      saveGridPrefs();
+      syncGridPanelUI();
+
+      // Only push to projector if calibration mode is ON
+      if (calibrationMode) {
+        setProjectorGrid(gridEnabled, gridSpacing);
+      }
+    }
+
+    function onGridSpacing(v) {
+      gridSpacing = Math.max(5, Math.min(400, parseInt(v, 10)));
+      saveGridPrefs();
+      syncGridPanelUI();
+
+      // Only push to projector if calibration mode is ON
+      if (calibrationMode) {
+        setProjectorGrid(gridEnabled, gridSpacing);
+      }
+    }
+
+    // --- PROJECTOR GRID DRAWING (projector side) ---
+    function initProjectorGridCanvas() {
+      if (!isProjectorMode) return;
+
+      const canvas = document.getElementById('projectorGridCanvas');
+      if (!canvas) return;
+
+      function resize() {
+        // Match device pixel ratio for crisp lines
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.floor(window.innerWidth * dpr);
+        canvas.height = Math.floor(window.innerHeight * dpr);
+        canvas.style.width = window.innerWidth + "px";
+        canvas.style.height = window.innerHeight + "px";
+        drawProjectorGrid();
+      }
+
+      window.addEventListener('resize', resize);
+      resize();
+    }
+
+    function drawProjectorGrid() {
+      if (!isProjectorMode) return;
+      const canvas = document.getElementById('projectorGridCanvas');
+      if (!canvas) return;
+
+      if (!projectorGridEnabled) {
+        canvas.style.display = 'none';
+        return;
+      }
+
+      canvas.style.display = 'block';
+
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.width;
+      const h = canvas.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Grid settings in CSS pixels -> convert to device pixels
+      const spacing = Math.max(5, projectorGridSpacing) * dpr;
+
+      // Style (no color picking UI yet; keep it visible but not obnoxious)
+      ctx.globalAlpha = 0.45;
+      ctx.lineWidth = 1 * dpr;
+      ctx.strokeStyle = "white";
+
+      // Vertical lines
+      for (let x = 0; x <= w; x += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(x + 0.5 * dpr, 0);
+        ctx.lineTo(x + 0.5 * dpr, h);
+        ctx.stroke();
+      }
+
+      // Horizontal lines
+      for (let y = 0; y <= h; y += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(0, y + 0.5 * dpr);
+        ctx.lineTo(w, y + 0.5 * dpr);
+        ctx.stroke();
+      }
+
+      ctx.globalAlpha = 1;
+    }
+
+    // --- SOCKET EVENTS ---
     socket.on('errorMsg', (msg) => alert(msg));
 
     // Projector blank command
@@ -444,12 +672,20 @@
       document.getElementById('projectorBlank').style.display = blank ? 'block' : 'none';
     });
 
-    // NEW: Projector view mode command
+    // Projector view mode command
     let projectorViewMode = 'normal'; // 'normal' or 'calibrate'
     socket.on('projectorViewMode', ({ mode }) => {
       if (!isProjectorMode) return;
       projectorViewMode = (mode === 'calibrate') ? 'calibrate' : 'normal';
-      updateDebug(`Projector Active\nOwner: ${projectorOwnerId}\nRoom: ${projectorRoomId}\nMode: ${projectorViewMode}\nWaiting for data...`);
+      updateDebug(`Projector Active\nOwner: ${projectorOwnerId}\nRoom: ${projectorRoomId}\nMode: ${projectorViewMode}`);
+    });
+
+    // NEW: Projector grid settings
+    socket.on('projectorGrid', ({ enabled, spacing }) => {
+      if (!isProjectorMode) return;
+      projectorGridEnabled = !!enabled;
+      projectorGridSpacing = Math.max(5, Math.min(400, parseInt(spacing, 10) || 50));
+      drawProjectorGrid();
     });
 
     // Receive snapshots (projector decides what to display based on mode)
@@ -468,8 +704,7 @@
         if (!isOwnerImage) return;
       }
 
-      const img = document.getElementById('projectorImage');
-      img.src = data.image;
+      document.getElementById('projectorImage').src = data.image;
       document.getElementById('fullscreenHint').style.display = 'none';
     });
 
@@ -512,13 +747,16 @@
 
       updateProjectorLink();
 
-      // When you join a room, default projector view to normal (opponent)
+      // Reset calibration UI state
       calibrationMode = false;
       const btn = document.getElementById('calibBtn');
       btn.classList.remove('on');
       btn.innerText = "🎯 Calibration Mode: OFF";
-      // Don’t emit until projector exists; safe to emit anyway
+      document.getElementById('calibPanel').style.display = 'none';
+
+      // Default projector to normal
       setProjectorViewMode('normal');
+      setProjectorGrid(false, gridSpacing);
     });
 
     socket.on('playerUpdate', (players) => {
@@ -530,12 +768,13 @@
 
       stopSending();
 
-      // Reset calibration & projector mode
+      // Reset calibration UI state
       calibrationMode = false;
       const btn = document.getElementById('calibBtn');
       btn.classList.remove('on');
       btn.innerText = "🎯 Calibration Mode: OFF";
       btn.style.display = 'none';
+      document.getElementById('calibPanel').style.display = 'none';
 
       document.getElementById('roomScreen').classList.remove('active');
       document.getElementById('lobbyScreen').classList.add('active');
