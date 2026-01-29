@@ -70,6 +70,15 @@ function removePlayerFromAllRooms(socket) {
   if (changed) io.emit('updateGameList', games);
 }
 
+function emitToOwnerProjectors(roomId, ownerId, eventName, payload) {
+  const roomMap = projectorSockets[roomId];
+  if (!roomMap || !roomMap[ownerId]) return;
+
+  for (const projectorSocketId of roomMap[ownerId]) {
+    io.to(projectorSocketId).emit(eventName, payload);
+  }
+}
+
 io.on('connection', (socket) => {
   socket.playerId = null;
 
@@ -139,21 +148,15 @@ io.on('connection', (socket) => {
     console.log(`Projector joined room=${roomId} owner=${ownerId} socket=${socket.id}`);
   });
 
-  // NEW: Set projector view mode for an owner's projector(s)
+  // Set projector view mode for an owner's projector(s)
   // mode: "normal" => show opponent only
   // mode: "calibrate" => show owner only
   socket.on('setProjectorViewMode', ({ roomId, ownerId, mode }) => {
     const room = games[roomId];
     if (!room || !roomId || !ownerId) return;
 
-    const roomMap = projectorSockets[roomId];
-    if (!roomMap || !roomMap[ownerId]) return;
-
     const safeMode = (mode === 'calibrate') ? 'calibrate' : 'normal';
-
-    for (const projectorSocketId of roomMap[ownerId]) {
-      io.to(projectorSocketId).emit('projectorViewMode', { mode: safeMode });
-    }
+    emitToOwnerProjectors(roomId, ownerId, 'projectorViewMode', { mode: safeMode });
   });
 
   // BLANKING CONTROL (targets owner's projector sockets)
@@ -161,12 +164,23 @@ io.on('connection', (socket) => {
     const room = games[roomId];
     if (!room || !roomId || !ownerId) return;
 
-    const roomMap = projectorSockets[roomId];
-    if (!roomMap || !roomMap[ownerId]) return;
+    emitToOwnerProjectors(roomId, ownerId, 'projectorBlank', { blank: !!blank });
+  });
 
-    for (const projectorSocketId of roomMap[ownerId]) {
-      io.to(projectorSocketId).emit('projectorBlank', { blank: !!blank });
-    }
+  // NEW: GRID SETTINGS (targets owner's projector sockets)
+  socket.on('setProjectorGrid', ({ roomId, ownerId, enabled, spacing }) => {
+    const room = games[roomId];
+    if (!room || !roomId || !ownerId) return;
+
+    const safeEnabled = !!enabled;
+    let safeSpacing = parseInt(spacing, 10);
+    if (Number.isNaN(safeSpacing)) safeSpacing = 50;
+    safeSpacing = Math.max(5, Math.min(400, safeSpacing));
+
+    emitToOwnerProjectors(roomId, ownerId, 'projectorGrid', {
+      enabled: safeEnabled,
+      spacing: safeSpacing
+    });
   });
 
   // LEAVE
