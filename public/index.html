@@ -16,7 +16,7 @@
 
     .hidden-section { display: none !important; }
 
-    /* Controller UI */
+    /* ---------- CONTROLLER UI ---------- */
     .screen {
       display: none;
       padding: 20px;
@@ -54,6 +54,17 @@
     .btn-camera { background: #28a745; color: white; }
     .btn-stop { background: #ff4d4f; color: white; font-weight: bold; display: none; }
 
+    /* NEW: Calibration toggle button */
+    .btn-calib {
+      background: #111;
+      color: white;
+      font-weight: bold;
+      display: none;
+    }
+    .btn-calib.on {
+      background: #ff0080;
+    }
+
     .btn-link-projector {
       display: block;
       width: 100%;
@@ -80,10 +91,24 @@
     ul { list-style: none; padding: 0; }
     li { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
 
-    #videoPreview { width: 100%; border-radius: 8px; background: #000; display: none; margin-top:10px; }
-    #sendStatus { display: none; font-size: 12px; opacity: 0.75; margin-top: 8px; color: #0070f3; }
+    #videoPreview {
+      width: 100%;
+      border-radius: 8px;
+      background: #000;
+      display: none;
+      margin-top: 10px;
+    }
 
-    /* Projector Mode */
+    #sendStatus {
+      display: none;
+      font-size: 12px;
+      opacity: 0.75;
+      margin-top: 8px;
+      color: #0070f3;
+      white-space: pre-line;
+    }
+
+    /* ---------- PROJECTOR MODE ---------- */
     #projectorView {
       display: none;
       position: fixed;
@@ -92,14 +117,19 @@
       height: 100%;
       background: black;
       z-index: 9999;
+
+      align-items: center;
+      justify-content: center;
     }
 
+    /* No stretching ever */
     #projectorImage {
       display: block;
-      width: 100vw;
-      height: 100vh;
+      max-width: 100vw;
+      max-height: 100vh;
+      width: auto;
+      height: auto;
       object-fit: contain;
-      object-position: center center;
     }
 
     #projectorDebug {
@@ -126,12 +156,12 @@
       pointer-events: none;
     }
 
-    /* NEW: Projector blanking overlay (kills infinite mirror) */
+    /* Projector blanking overlay */
     #projectorBlank {
       display: none;
       position: fixed;
       inset: 0;
-      background: black; /* recommend black over white */
+      background: black;
       z-index: 10000;
     }
   </style>
@@ -177,7 +207,7 @@
         <a id="projectorLink" href="#" target="_blank" class="btn-link-projector">
           ⛶ Open Projector Tab
         </a>
-        <p style="font-size:11px; color:#666; margin-top:5px;">(Click link, drag tab to 2nd monitor, then double-click it)</p>
+
         <hr>
 
         <button class="btn-camera" onclick="startCamera()">📷 Open Camera</button>
@@ -185,6 +215,9 @@
 
         <button id="startBtn" class="btn-primary" style="display:none;" onclick="startSending()">▶ Start Auto-Send (30s)</button>
         <button id="stopBtn" class="btn-stop" onclick="stopSending()">■ Stop Sending</button>
+
+        <!-- NEW: Calibration mode toggle next to Start/Stop area -->
+        <button id="calibBtn" class="btn-calib" onclick="toggleCalibrationMode()">🎯 Calibration Mode: OFF</button>
 
         <div id="sendStatus"></div>
 
@@ -212,10 +245,15 @@
     let projectorOwnerId = null;
     let projectorRoomId = null;
 
-    const SEND_EVERY_MS = 30000; // 30 seconds
-    const STAGGER_JOIN_MS = 15000; // join waits 15s to de-sync
-    const BLANK_BEFORE_MS = 220;  // projector blank duration before capture
-    const BLANK_AFTER_MS  = 80;   // keep blank a tiny bit after capture
+    // NEW: calibration mode state (controller side)
+    let calibrationMode = false;
+
+    const SEND_EVERY_MS = 30000;
+    const STAGGER_JOIN_MS = 15000;
+
+    // Blanking (disabled while calibration mode is ON)
+    const BLANK_BEFORE_MS = 220;
+    const BLANK_AFTER_MS  = 80;
 
     // --- INIT ---
     window.onload = function() {
@@ -229,9 +267,9 @@
         projectorOwnerId = params.get('owner');
 
         document.getElementById('mainInterface').style.display = 'none';
-        document.getElementById('projectorView').style.display = 'block';
+        document.getElementById('projectorView').style.display = 'flex';
 
-        updateDebug(`Projector Active\nOwner: ${projectorOwnerId}\nRoom: ${projectorRoomId}\nWaiting for data...`);
+        updateDebug(`Projector Active\nOwner: ${projectorOwnerId}\nRoom: ${projectorRoomId}\nMode: normal\nWaiting for data...`);
 
         if (projectorRoomId && projectorOwnerId) {
           socket.emit('joinAsProjector', { roomId: projectorRoomId, ownerId: projectorOwnerId });
@@ -254,6 +292,12 @@
     function updateDebug(msg) {
       const el = document.getElementById('projectorDebug');
       if (el) el.innerText = msg;
+    }
+
+    function setStatus(msg) {
+      const el = document.getElementById('sendStatus');
+      el.style.display = msg ? 'block' : 'none';
+      el.innerText = msg || '';
     }
 
     // --- FULLSCREEN TOGGLE (Projector Tab) ---
@@ -279,32 +323,51 @@
           const video = document.getElementById('videoPreview');
           video.srcObject = stream;
           video.style.display = 'block';
+
           document.getElementById('startBtn').style.display = 'block';
           document.getElementById('stopBtn').style.display = 'none';
+
+          // Show calibration button once camera is available (and we’re in a room soon)
+          const calibBtn = document.getElementById('calibBtn');
+          calibBtn.style.display = 'block';
         })
         .catch(() => alert("Camera blocked! Check permissions."));
     }
 
-    function setStatus(msg) {
-      const el = document.getElementById('sendStatus');
-      el.style.display = msg ? 'block' : 'none';
-      el.innerText = msg || '';
+    // --- Projector control from controller ---
+    function setProjectorViewMode(mode) {
+      if (!currentRoomId || !myPlayerId) return;
+      socket.emit('setProjectorViewMode', { roomId: currentRoomId, ownerId: myPlayerId, mode });
     }
 
-    /**
-     * Blank the OWNER'S projector tab before capture.
-     * This helps prevent the camera from re-capturing the projected opponent image.
-     */
+    function toggleCalibrationMode() {
+      calibrationMode = !calibrationMode;
+
+      const btn = document.getElementById('calibBtn');
+      if (calibrationMode) {
+        btn.classList.add('on');
+        btn.innerText = "🎯 Calibration Mode: ON";
+        setStatus("Calibration ON:\nProjector shows YOUR camera feed.\nBlanking disabled.\n(Use this to align/measure.)");
+        setProjectorViewMode('calibrate');
+      } else {
+        btn.classList.remove('on');
+        btn.innerText = "🎯 Calibration Mode: OFF";
+        setStatus("Calibration OFF:\nProjector shows opponent again.\nBlanking enabled.");
+        setProjectorViewMode('normal');
+      }
+    }
+
+    // --- Blanking control (owner projector) ---
     function blankMyProjector(on) {
       if (!currentRoomId || !myPlayerId) return;
       socket.emit('setProjectorBlank', { roomId: currentRoomId, ownerId: myPlayerId, blank: !!on });
     }
 
+    // --- Capture & send ---
     function captureAndSendFrame() {
       const video = document.getElementById('videoPreview');
       if (!video || !cameraStream || !currentRoomId) return;
 
-      // Use a moderate resolution. 1280x720 is OK, but heavy.
       const canvas = document.getElementById('canvas');
       canvas.width = 1280;
       canvas.height = 720;
@@ -318,26 +381,20 @@
       setStatus(`Sent snapshot at ${new Date().toLocaleTimeString()}`);
     }
 
-    /**
-     * Capture flow with blanking timing:
-     * 1) blank projector (black)
-     * 2) wait a beat
-     * 3) capture + send
-     * 4) wait a tiny beat
-     * 5) unblank projector
-     */
     function captureAndSendWithBlank() {
       if (!cameraStream || !currentRoomId) return;
+
+      // During calibration we do NOT blank (you want to see the feedback)
+      if (calibrationMode) {
+        captureAndSendFrame();
+        return;
+      }
 
       blankMyProjector(true);
 
       setTimeout(() => {
         captureAndSendFrame();
-
-        setTimeout(() => {
-          blankMyProjector(false);
-        }, BLANK_AFTER_MS);
-
+        setTimeout(() => blankMyProjector(false), BLANK_AFTER_MS);
       }, BLANK_BEFORE_MS);
     }
 
@@ -348,17 +405,20 @@
 
       const params = new URLSearchParams(window.location.search);
       const mode = params.get('mode');
-
       const initialDelay = (mode === 'join') ? STAGGER_JOIN_MS : 0;
 
       setStatus(initialDelay ? `Starting in ${initialDelay/1000}s (staggered)...` : "Starting...");
 
       setTimeout(() => {
-        captureAndSendWithBlank(); // immediate first shot
+        captureAndSendWithBlank();
         sendIntervalId = setInterval(captureAndSendWithBlank, SEND_EVERY_MS);
 
         document.getElementById('startBtn').style.display = 'none';
         document.getElementById('stopBtn').style.display = 'block';
+
+        // show calibration button (already shown after camera, but safe)
+        document.getElementById('calibBtn').style.display = 'block';
+
         setStatus(`Auto-sending active (every 30s). Started at ${new Date().toLocaleTimeString()}`);
       }, initialDelay);
     }
@@ -376,33 +436,40 @@
 
     // --- SOCKET EVENTS ---
 
-    // Server error messages (duplicate player ID etc.)
-    socket.on('errorMsg', (msg) => {
-      alert(msg);
-    });
+    socket.on('errorMsg', (msg) => alert(msg));
 
-    // Projector blank command (server targets owner’s projector sockets)
+    // Projector blank command
     socket.on('projectorBlank', ({ blank }) => {
       if (!isProjectorMode) return;
       document.getElementById('projectorBlank').style.display = blank ? 'block' : 'none';
     });
 
-    // Receive snapshots (projector shows opponent only)
+    // NEW: Projector view mode command
+    let projectorViewMode = 'normal'; // 'normal' or 'calibrate'
+    socket.on('projectorViewMode', ({ mode }) => {
+      if (!isProjectorMode) return;
+      projectorViewMode = (mode === 'calibrate') ? 'calibrate' : 'normal';
+      updateDebug(`Projector Active\nOwner: ${projectorOwnerId}\nRoom: ${projectorRoomId}\nMode: ${projectorViewMode}\nWaiting for data...`);
+    });
+
+    // Receive snapshots (projector decides what to display based on mode)
     socket.on('receiveImage', (data) => {
       if (!isProjectorMode) return;
 
-      // Ignore images from the projector owner (so you only display opponent)
-      if (data.senderId === projectorOwnerId) {
-        updateDebug(`Ignored image from Owner (${data.senderId})`);
-        return;
+      const isOwnerImage = (data.senderId === projectorOwnerId);
+
+      // normal => show opponent only
+      if (projectorViewMode === 'normal') {
+        if (isOwnerImage) return;
       }
 
-      updateDebug(`SHOWING image from Opponent (${data.senderId})`);
+      // calibrate => show owner only
+      if (projectorViewMode === 'calibrate') {
+        if (!isOwnerImage) return;
+      }
 
       const img = document.getElementById('projectorImage');
       img.src = data.image;
-
-      // first image received: hide hint
       document.getElementById('fullscreenHint').style.display = 'none';
     });
 
@@ -444,6 +511,14 @@
       document.getElementById('playerList').innerHTML = room.players.map(p => `<li>👤 ${p}</li>`).join('');
 
       updateProjectorLink();
+
+      // When you join a room, default projector view to normal (opponent)
+      calibrationMode = false;
+      const btn = document.getElementById('calibBtn');
+      btn.classList.remove('on');
+      btn.innerText = "🎯 Calibration Mode: OFF";
+      // Don’t emit until projector exists; safe to emit anyway
+      setProjectorViewMode('normal');
     });
 
     socket.on('playerUpdate', (players) => {
@@ -454,6 +529,13 @@
       currentRoomId = null;
 
       stopSending();
+
+      // Reset calibration & projector mode
+      calibrationMode = false;
+      const btn = document.getElementById('calibBtn');
+      btn.classList.remove('on');
+      btn.innerText = "🎯 Calibration Mode: OFF";
+      btn.style.display = 'none';
 
       document.getElementById('roomScreen').classList.remove('active');
       document.getElementById('lobbyScreen').classList.add('active');
