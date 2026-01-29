@@ -4,7 +4,7 @@ const http = require('http');
 const server = http.createServer(app);
 const { Server } = require("socket.io");
 
-// 100 MB limit for images (prototype-safe, but consider lowering later)
+// 100 MB limit for images
 const io = new Server(server, {
   maxHttpBufferSize: 1e8
 });
@@ -22,13 +22,8 @@ let games = {};
 
 /**
  * projectorSockets[roomId][ownerId] = Set(socketId)
- * Used to target the projector tab(s) that belong to a specific player.
  */
 let projectorSockets = {};
-
-function getRoom(roomId) {
-  return games[roomId] || null;
-}
 
 function listPlayers(room) {
   return room.players.map(p => p.playerId);
@@ -77,6 +72,8 @@ function removePlayerFromAllRooms(socket) {
 
 io.on('connection', (socket) => {
   socket.playerId = null;
+
+  // Projector socket identity
   socket.isProjector = false;
   socket.projectorRoomId = null;
   socket.projectorOwnerId = null;
@@ -100,23 +97,17 @@ io.on('connection', (socket) => {
 
     socket.join(roomId);
 
-    socket.emit('joinedRoom', {
-      id: roomId,
-      name,
-      players: listPlayers(games[roomId])
-    });
-
+    socket.emit('joinedRoom', { id: roomId, name, players: listPlayers(games[roomId]) });
     io.emit('updateGameList', games);
   });
 
   // JOIN
   socket.on('joinGame', ({ roomId, playerId }) => {
-    const room = getRoom(roomId);
+    const room = games[roomId];
     if (!room || !playerId) return;
 
-    // Prevent duplicate IDs inside the SAME room (stops collisions & impersonation)
-    const exists = room.players.some(p => p.playerId === playerId);
-    if (exists) {
+    // Prevent duplicate player IDs in the same room
+    if (room.players.some(p => p.playerId === playerId)) {
       socket.emit('errorMsg', `Player ID "${playerId}" is already in this room. Choose a different one.`);
       return;
     }
@@ -131,10 +122,10 @@ io.on('connection', (socket) => {
     io.emit('updateGameList', games);
   });
 
-  // PROJECTOR JOIN (now includes ownerId so we can target blanking)
+  // PROJECTOR JOIN (room + owner)
   socket.on('joinAsProjector', ({ roomId, ownerId }) => {
-    const room = getRoom(roomId);
-    if (!roomId || !ownerId || !room) return;
+    const room = games[roomId];
+    if (!room || !roomId || !ownerId) return;
 
     socket.isProjector = true;
     socket.projectorRoomId = roomId;
@@ -148,14 +139,43 @@ io.on('connection', (socket) => {
     console.log(`Projector joined room=${roomId} owner=${ownerId} socket=${socket.id}`);
   });
 
+  // NEW: Set projector view mode for an owner's projector(s)
+  // mode: "normal" => show opponent only
+  // mode: "calibrate" => show owner only
+  socket.on('setProjectorViewMode', ({ roomId, ownerId, mode }) => {
+    const room = games[roomId];
+    if (!room || !roomId || !ownerId) return;
+
+    const roomMap = projectorSockets[roomId];
+    if (!roomMap || !roomMap[ownerId]) return;
+
+    const safeMode = (mode === 'calibrate') ? 'calibrate' : 'normal';
+
+    for (const projectorSocketId of roomMap[ownerId]) {
+      io.to(projectorSocketId).emit('projectorViewMode', { mode: safeMode });
+    }
+  });
+
+  // BLANKING CONTROL (targets owner's projector sockets)
+  socket.on('setProjectorBlank', ({ roomId, ownerId, blank }) => {
+    const room = games[roomId];
+    if (!room || !roomId || !ownerId) return;
+
+    const roomMap = projectorSockets[roomId];
+    if (!roomMap || !roomMap[ownerId]) return;
+
+    for (const projectorSocketId of roomMap[ownerId]) {
+      io.to(projectorSocketId).emit('projectorBlank', { blank: !!blank });
+    }
+  });
+
   // LEAVE
   socket.on('leaveGame', (roomId) => {
-    const room = getRoom(roomId);
+    const room = games[roomId];
     if (!room) return;
 
     socket.leave(roomId);
 
-    // Remove player entry if present
     room.players = room.players.filter(p => p.socketId !== socket.id);
 
     if (room.players.length === 0) {
@@ -168,31 +188,13 @@ io.on('connection', (socket) => {
     io.emit('updateGameList', games);
   });
 
-  /**
-   * BLANKING CONTROL
-   * Client calls: socket.emit('setProjectorBlank', { roomId, ownerId, blank: true/false })
-   * Server targets the projector tab(s) belonging to that owner in that room.
-   */
-  socket.on('setProjectorBlank', ({ roomId, ownerId, blank }) => {
-    const room = getRoom(roomId);
-    if (!room || !roomId || !ownerId) return;
-
-    const roomMap = projectorSockets[roomId];
-    if (!roomMap || !roomMap[ownerId]) return;
-
-    for (const projectorSocketId of roomMap[ownerId]) {
-      io.to(projectorSocketId).emit('projectorBlank', { blank: !!blank });
-    }
-  });
-
   // IMAGE HANDLING
   socket.on('sendImage', ({ roomId, image }) => {
-    const room = getRoom(roomId);
-    if (!room || !image) return;
+    const room = games[roomId];
+    if (!room || !roomId || !image) return;
 
     if (typeof image !== 'string' || !image.startsWith('data:image/')) return;
 
-    // Broadcast to everyone in room (controllers ignore; projectors filter by ownerId)
     io.to(roomId).emit('receiveImage', {
       image,
       senderId: socket.playerId
@@ -201,12 +203,9 @@ io.on('connection', (socket) => {
 
   // DISCONNECT
   socket.on('disconnect', () => {
-    // If this socket was a projector, clean up its registration
     if (socket.isProjector && socket.projectorRoomId && socket.projectorOwnerId) {
       removeProjectorSocket(socket.projectorRoomId, socket.projectorOwnerId, socket.id);
     }
-
-    // Remove player record(s) if this was a controller socket
     removePlayerFromAllRooms(socket);
   });
 });
