@@ -208,12 +208,15 @@
     let currentRoomId = null;
     let cameraStream = null;
     let sendIntervalId = null;
+    let sendStartTimeoutId = null;
     let myPlayerId = null;
 
     // Projector state
     let isProjectorMode = false;
     let projectorOwnerId = null;
     let projectorRoomId = null;
+    let blankTokenLocal = 0;
+    let lastBlankTokenSeen = -1;
     
     // Calibration state
     let calibrationMode = false;
@@ -322,8 +325,17 @@
         }); 
     }
     
-    function blankMyProjector(on) { if(currentRoomId) socket.emit('setProjectorBlank', { roomId: currentRoomId, ownerId: myPlayerId, blank: !!on }); }
-    
+    function blankMyProjector(on) {
+  if (!currentRoomId) return;
+  blankTokenLocal++;
+  socket.emit('setProjectorBlank', {
+    roomId: currentRoomId,
+    ownerId: myPlayerId,
+    blank: !!on,
+    token: blankTokenLocal
+  });
+}
+
     function toggleCalibrationMode() {
       calibrationMode = !calibrationMode;
       const btn = document.getElementById('calibBtn');
@@ -376,26 +388,48 @@
     }
 
     function startSending() {
-      if (!cameraStream || !currentRoomId) return alert("Setup first!");
-      if (sendIntervalId) return;
-      const d = (new URLSearchParams(window.location.search).get('mode') === 'join') ? STAGGER_JOIN_MS : 0;
-      setStatus(d ? `Starting in ${d/1000}s...` : "Starting...");
-      setTimeout(() => {
-        captureAndSendWithBlank();
-        sendIntervalId = setInterval(captureAndSendWithBlank, SEND_EVERY_MS);
-        document.getElementById('startBtn').style.display = 'none';
-        document.getElementById('stopBtn').style.display = 'block';
-      }, d);
-    }
+  if (!cameraStream || !currentRoomId) return alert("Setup first!");
+
+  if (sendIntervalId || sendStartTimeoutId) return;
+
+  const isJoinMode =
+    new URLSearchParams(window.location.search).get('mode') === 'join';
+  const d = isJoinMode ? STAGGER_JOIN_MS : 0;
+
+  setStatus(d ? `Starting in ${d / 1000}s...` : "Starting...");
+
+  sendStartTimeoutId = setTimeout(() => {
+    sendStartTimeoutId = null;
+
+    if (!cameraStream || !currentRoomId) return;
+
+    captureAndSendWithBlank();
+    sendIntervalId = setInterval(
+      captureAndSendWithBlank,
+      SEND_EVERY_MS
+    );
+
+    document.getElementById('startBtn').style.display = 'none';
+    document.getElementById('stopBtn').style.display = 'block';
+  }, d);
+}
+
 
     function stopSending() {
-      if (sendIntervalId) clearInterval(sendIntervalId);
-      sendIntervalId = null;
-      document.getElementById('stopBtn').style.display = 'none';
-      document.getElementById('startBtn').style.display = 'block';
-      setStatus("Stopped.");
-      blankMyProjector(false);
-    }
+  if (sendStartTimeoutId) {
+    clearTimeout(sendStartTimeoutId);
+    sendStartTimeoutId = null;
+  }
+  if (sendIntervalId) {
+    clearInterval(sendIntervalId);
+    sendIntervalId = null;
+  }
+
+  document.getElementById('stopBtn').style.display = 'none';
+  document.getElementById('startBtn').style.display = 'block';
+  setStatus("Stopped.");
+  blankMyProjector(false);
+}
 
     // --- GRID UI ---
     function toggleGrid() { gridEnabled = !gridEnabled; syncGridPanelUI(); if(calibrationMode) sendGridUpdate(); }
@@ -462,7 +496,18 @@
 
     // --- SOCKET HANDLERS ---
     socket.on('errorMsg', alert);
-    socket.on('projectorBlank', ({blank}) => { if(isProjectorMode) document.getElementById('projectorBlank').style.display = blank?'block':'none'; });
+    socket.on('projectorBlank', ({ blank, ownerId, token }) => {
+  if (!isProjectorMode) return;
+  if (ownerId !== projectorOwnerId) return;
+
+  if (typeof token === 'number' && token < lastBlankTokenSeen) return;
+  if (typeof token === 'number') lastBlankTokenSeen = token;
+
+  document.getElementById('projectorBlank').style.display =
+    blank ? 'block' : 'none';
+});
+
+
     socket.on('projectorViewMode', ({mode}) => { if(isProjectorMode) { projectorViewMode=mode; updateDebug(`Projector Active\nOwner: ${projectorOwnerId}\nMode: ${mode}`); } });
     
     // UPDATED: Filter by Owner ID
