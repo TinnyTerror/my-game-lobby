@@ -4,6 +4,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Multiplayer Game</title>
   <style>
+    /* 1. RESET & LAYOUT */
     body, html { margin: 0; padding: 0; font-family: sans-serif; height: 100%; width: 100%; background: black; overflow: hidden; }
     .hidden-section { display: none !important; }
 
@@ -16,6 +17,14 @@
     .btn-primary { background: #0070f3; color: white; }
     .btn-camera { background: #28a745; color: white; }
     .btn-stop { background: #ff4d4f; color: white; font-weight: bold; display: none; }
+    .btn-dice { background: #666; color: white; margin-top: 15px; } 
+    
+    .dice-btn-row { display: flex; gap: 5px; margin-top: 10px; }
+    .btn-d3  { background: #f0ad4e; color: white; font-weight: bold; }
+    .btn-d6  { background: #333; color: white; font-weight: bold; }
+    .btn-d10 { background: #0275d8; color: white; font-weight: bold; }
+    .btn-d20 { background: #d9534f; color: white; font-weight: bold; }
+
     .btn-calib { background: #111; color: white; font-weight: bold; display: none; }
     .btn-calib.on { background: #ff0080; }
 
@@ -27,7 +36,6 @@
     .toggleBtn { width: auto; padding: 8px 10px; border-radius: 10px; background: #0070f3; color: white; font-weight: bold; margin-top: 0; }
     .toggleBtn.off { background: #ddd; color: #333; }
     
-    /* Dual Input Wrap */
     .dual-input { display: flex; gap: 5px; align-items: center; }
     .dual-input input { width: 60px; text-align: center; font-weight: bold; margin: 0; }
     .label { font-size: 11px; color: #666; text-transform: uppercase; }
@@ -37,38 +45,66 @@
 
     #videoPreview { width: 100%; border-radius: 8px; background: #000; display: none; margin-top: 10px; }
     #sendStatus { display: none; font-size: 12px; opacity: 0.75; margin-top: 8px; color: #0070f3; white-space: pre-line; }
-
-    /* --- PROJECTOR MODE --- */
-    #projectorView { display: none; position: fixed; inset: 0; width: 100%; height: 100%; background: black; z-index: 9999; align-items: center; justify-content: center; }
-
-    /* Keeping 'contain' as requested for now (Black bars might appear) */
-    #projectorImage {
-      display: block;
-      max-width: 100vw;
-      max-height: 100vh;
-      width: auto;
-      height: auto;
-      object-fit: contain; 
-      z-index: 1;
-    }
-
-    /* Grid overlay */
-    #projectorGridCanvas { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 9999; pointer-events: none; display: none; }
-
-    #projectorDebug { color: #00ff00; font-family: monospace; font-size: 14px; position: absolute; top: 10px; left: 10px; z-index: 10001; background: rgba(0,0,0,0.5); padding: 10px; pointer-events: none; white-space: pre-line; }
-    #fullscreenHint { color: rgba(255,255,255,0.5); font-size: 12px; position: absolute; bottom: 10px; width: 100%; text-align: center; pointer-events: none; z-index: 10001; }
-    #projectorBlank { display: none; position: fixed; inset: 0; background: black; z-index: 10000; }
     
     #calibPanel { display: none; margin-top: 10px; padding: 12px; border-radius: 12px; border: 1px solid #eee; background: #fafafa; text-align: left; }
     #calibPanel h3 { margin: 0 0 10px 0; font-size: 14px; }
+
+    /* --- DICE STYLES --- */
+    #diceTray { display: none; background: #eee; border-radius: 12px; padding: 15px; margin-top: 10px; border: 1px solid #ccc; }
+    .dice-area { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 15px; min-height: 40px; }
+    .die-box { display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; border-radius: 6px; box-shadow: 2px 2px 5px rgba(0,0,0,0.3); border: 2px solid rgba(255,255,255,0.5); }
+    .type-D3  { background: #f0ad4e; color: black; }
+    .type-D6  { background: #333; }
+    .type-D10 { background: #0275d8; }
+    .type-D20 { background: #d9534f; }
+    .size-S { width: 30px; height: 30px; font-size: 14px; }
+    .size-M { width: 50px; height: 50px; font-size: 22px; }
+    .size-L { width: 80px; height: 80px; font-size: 36px; }
+
+    /* --- PROJECTOR MODE STYLES --- */
+    #projectorView { display: none; position: fixed; inset: 0; width: 100%; height: 100%; background: black; z-index: 9999; align-items: center; justify-content: center; }
+
+    /* FUSED CONTAINER: This resizes based on User's Settings */
+    #projectorContent {
+        position: relative;
+        width: 100px; height: 100px; /* Default, overridden by JS */
+        display: flex; justify-content: center; align-items: center;
+    }
+
+    /* IMAGE: Stretches to fill the Fused Container */
+    #projectorImage {
+      display: block; width: 100%; height: 100%;
+      object-fit: fill; 
+      z-index: 1;
+    }
+
+    /* GRID: Stretches to fill the Fused Container */
+    #projectorGridCanvas { 
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+        z-index: 2; pointer-events: none; display: none; 
+    }
+    
+    #projectorDiceOverlay { position: fixed; bottom: 20px; right: 20px; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 15px; z-index: 10002; display: none; pointer-events: none; border: 2px solid white; }
+    #projectorDebug { color: #00ff00; font-family: monospace; font-size: 14px; position: absolute; top: 10px; left: 10px; z-index: 10001; background: rgba(0,0,0,0.5); padding: 10px; pointer-events: none; white-space: pre-line; }
+    #fullscreenHint { color: rgba(255,255,255,0.5); font-size: 12px; position: absolute; bottom: 10px; width: 100%; text-align: center; pointer-events: none; z-index: 10001; }
+    #projectorBlank { display: none; position: fixed; inset: 0; background: black; z-index: 10000; }
   </style>
 </head>
 <body>
 
   <div id="projectorView" ondblclick="toggleFullScreen()">
     <div id="projectorDebug">Initializing...</div>
-    <img id="projectorImage" src="">
-    <canvas id="projectorGridCanvas"></canvas>
+    
+    <div id="projectorContent">
+        <img id="projectorImage" src="">
+        <canvas id="projectorGridCanvas"></canvas>
+    </div>
+
+    <div id="projectorDiceOverlay">
+        <div style="color:white; font-size:12px; margin-bottom:5px;">INCOMING ROLL:</div>
+        <div id="projDiceContainer" class="dice-area" style="margin-top:0;"></div>
+    </div>
+
     <div id="fullscreenHint">(Double-click screen for true fullscreen)</div>
   </div>
 
@@ -108,6 +144,29 @@
         <button id="startBtn" class="btn-primary" style="display:none;" onclick="startSending()">▶ Start Auto-Send (30s)</button>
         <button id="stopBtn" class="btn-stop" onclick="stopSending()">■ Stop Sending</button>
 
+        <button class="btn-dice" onclick="toggleDiceTray()">🎲 Open Dice Tray</button>
+        <div id="diceTray">
+            <div class="row">
+                <span>Quantity:</span>
+                <input type="number" id="diceQty" value="1" min="1" max="20" style="width:60px; margin:0; text-align:center;">
+                <span>Display Size:</span>
+                <select id="diceSize" style="padding:8px; border-radius:6px;">
+                    <option value="S">Small</option>
+                    <option value="M" selected>Medium</option>
+                    <option value="L">Large</option>
+                </select>
+            </div>
+            
+            <p style="font-size:12px; color:#666; margin-bottom:5px;">Select Type to Roll:</p>
+            <div class="dice-btn-row">
+                <button class="btn-d3" onclick="rollDice(3, 'D3')">D3</button>
+                <button class="btn-d6" onclick="rollDice(6, 'D6')">D6</button>
+                <button class="btn-d10" onclick="rollDice(10, 'D10')">D10</button>
+                <button class="btn-d20" onclick="rollDice(20, 'D20')">D20</button>
+            </div>
+            <div id="localDiceResults" class="dice-area"></div>
+        </div>
+
         <button id="calibBtn" class="btn-calib" style="margin-top:15px;" onclick="toggleCalibrationMode()">🎯 Calibration Mode: OFF</button>
 
         <div id="calibPanel">
@@ -116,7 +175,6 @@
             <div>Grid Overlay</div>
             <button id="gridToggleBtn" class="toggleBtn off" onclick="toggleGrid()">OFF</button>
           </div>
-          
           <div class="row">
             <div>Square Dimensions</div>
             <div class="dual-input">
@@ -130,10 +188,8 @@
                 </div>
             </div>
           </div>
-          
           <div style="font-size:11px; opacity:0.8; line-height:1.35; background:#eef; padding:8px; border-radius:8px;">
-            <b>Calibration:</b><br>
-            Use Up/Down arrows on Width & Height until the projected square perfectly matches <b>1x1 inch</b> on your table.
+            <b>Calibration:</b> Adjust Width & Height until the projected square perfectly matches <b>1x1 inch</b> on your table.
           </div>
         </div>
 
@@ -168,12 +224,12 @@
     const BLANK_BEFORE_MS = 220;
     const BLANK_AFTER_MS  = 80;
 
-    // Grid Settings (NOW SEPARATE WIDTH/HEIGHT)
+    // Grid Settings
     let gridEnabled = false;
     let gridW = 50;
     let gridH = 50;
     
-    // Projector Grid State
+    // Local Projector Grid State
     let projGridEnabled = false;
     let projGridW = 50;
     let projGridH = 50;
@@ -194,7 +250,10 @@
         document.getElementById('projectorView').style.display = 'flex';
         updateDebug(`Projector Active\nOwner: ${projectorOwnerId}\nMode: normal`);
         
-        initProjectorGridCanvas();
+        // Init canvas
+        const c = document.getElementById('projectorGridCanvas');
+        c.width = 100; c.height = 100; // Placeholder
+
         if (projectorRoomId && projectorOwnerId) {
           socket.emit('joinAsProjector', { roomId: projectorRoomId, ownerId: projectorOwnerId });
         }
@@ -207,6 +266,34 @@
       loadGridPrefs();
       syncGridPanelUI();
     };
+
+    // --- DICE LOGIC ---
+    function toggleDiceTray() {
+        const tray = document.getElementById('diceTray');
+        const btn = document.querySelector('.btn-dice');
+        if (tray.style.display === 'block') { tray.style.display = 'none'; btn.innerText = "🎲 Open Dice Tray"; }
+        else { tray.style.display = 'block'; btn.innerText = "🎲 Close Dice Tray"; }
+    }
+    function rollDice(sides, typeName) {
+        if (!currentRoomId) return alert("Join a room first!");
+        const qty = parseInt(document.getElementById('diceQty').value);
+        const size = document.getElementById('diceSize').value;
+        const results = [];
+        for(let i=0; i<qty; i++) results.push(Math.floor(Math.random() * sides) + 1);
+        const diceData = { results, size, type: typeName };
+        renderDice(diceData, 'localDiceResults');
+        socket.emit('rollDice', { roomId: currentRoomId, dice: diceData, senderId: myPlayerId });
+    }
+    function renderDice(diceData, containerId) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = ''; 
+        diceData.results.forEach(num => {
+            const die = document.createElement('div');
+            die.className = `die-box type-${diceData.type} size-${diceData.size}`;
+            die.innerText = num;
+            container.appendChild(die);
+        });
+    }
 
     // --- UTILS ---
     function updateProjectorLink() {
@@ -250,7 +337,7 @@
         btn.classList.remove('on'); btn.innerText = "🎯 Calibration Mode: OFF"; panel.style.display = 'none';
         setStatus("Calibration OFF: Projector shows opponent.");
         setProjectorViewMode('normal'); 
-        // Turn grid off when leaving calibration
+        // Turn grid off
         socket.emit('setProjectorGrid', { roomId: currentRoomId, ownerId: myPlayerId, enabled: false, width: gridW, height: gridH });
       }
     }
@@ -311,35 +398,25 @@
     }
 
     // --- GRID UI ---
-    function toggleGrid() { 
-        gridEnabled = !gridEnabled; 
-        syncGridPanelUI(); 
-        if(calibrationMode) sendGridUpdate(); 
-    }
-    
+    function toggleGrid() { gridEnabled = !gridEnabled; syncGridPanelUI(); if(calibrationMode) sendGridUpdate(); }
     function onGridInput() { 
         const wVal = parseInt(document.getElementById('gridWidthInput').value);
         const hVal = parseInt(document.getElementById('gridHeightInput').value);
-        
         if(wVal) gridW = Math.max(10, Math.min(400, wVal));
         if(hVal) gridH = Math.max(10, Math.min(400, hVal));
-        
         saveGridPrefs();
         if(calibrationMode) sendGridUpdate(); 
     }
-    
     function loadGridPrefs() { 
         gridEnabled=(localStorage.getItem("wg_grid_enabled")==="true"); 
         gridW=parseInt(localStorage.getItem("wg_grid_w")||"50"); 
         gridH=parseInt(localStorage.getItem("wg_grid_h")||"50"); 
     }
-    
     function saveGridPrefs() {
         localStorage.setItem("wg_grid_enabled", gridEnabled); 
         localStorage.setItem("wg_grid_w", gridW);
         localStorage.setItem("wg_grid_h", gridH);
     }
-    
     function syncGridPanelUI() {
       document.getElementById('gridToggleBtn').classList.toggle('off', !gridEnabled);
       document.getElementById('gridToggleBtn').innerText = gridEnabled ? "ON" : "OFF";
@@ -347,51 +424,40 @@
       document.getElementById('gridHeightInput').value = gridH;
     }
 
-    // --- PROJECTOR GRID DRAW ---
-    function initProjectorGridCanvas() {
-      if (!isProjectorMode) return;
-      const c = document.getElementById('projectorGridCanvas');
-      window.addEventListener('resize', () => { c.width=window.innerWidth; c.height=window.innerHeight; drawProjectorGrid(); });
-      c.width=window.innerWidth; c.height=window.innerHeight;
-    }
-
-    function drawProjectorGrid() {
-      if (!isProjectorMode) return;
-      const c = document.getElementById('projectorGridCanvas');
-      const ctx = c.getContext('2d');
-      ctx.clearRect(0,0,c.width,c.height);
-      
-      if (!projGridEnabled) return;
-      c.style.display='block';
-      
-      const totalGridWidth = GRID_COLS * projGridW;
-      const totalGridHeight = GRID_ROWS * projGridH;
-      
-      const startX = (c.width - totalGridWidth) / 2;
-      const startY = (c.height - totalGridHeight) / 2;
-      
-      ctx.lineWidth=1; ctx.strokeStyle="white"; ctx.globalAlpha=0.6;
-      
-      // Draw Verticals (use Width)
-      for(let x=0; x<=GRID_COLS; x++) { 
-          const xPos = startX + (x * projGridW);
-          ctx.beginPath(); ctx.moveTo(xPos, startY); ctx.lineTo(xPos, startY + totalGridHeight); ctx.stroke(); 
-      }
-      
-      // Draw Horizontals (use Height)
-      for(let y=0; y<=GRID_ROWS; y++) { 
-          const yPos = startY + (y * projGridH);
-          ctx.beginPath(); ctx.moveTo(startX, yPos); ctx.lineTo(startX + totalGridWidth, yPos); ctx.stroke(); 
-      }
-      
-      // Center Lines (Green)
-      ctx.lineWidth=2; ctx.strokeStyle="#00ff00"; ctx.globalAlpha=0.8;
-      const midX = startX + (GRID_COLS/2 * projGridW);
-      ctx.beginPath(); ctx.moveTo(midX, startY); ctx.lineTo(midX, startY + totalGridHeight); ctx.stroke();
-      const midY = startY + (GRID_ROWS/2 * projGridH);
-      ctx.beginPath(); ctx.moveTo(startX, midY); ctx.lineTo(startX + totalGridWidth, midY); ctx.stroke();
-
-      ctx.globalAlpha=1;
+    // --- PROJECTOR RENDER LOGIC ---
+    function updateProjectorLayout() {
+        if (!isProjectorMode) return;
+        const targetW = GRID_COLS * projGridW;
+        const targetH = GRID_ROWS * projGridH;
+        
+        const container = document.getElementById('projectorContent');
+        container.style.width = targetW + 'px';
+        container.style.height = targetH + 'px';
+        
+        const c = document.getElementById('projectorGridCanvas');
+        c.width = targetW; c.height = targetH;
+        
+        const ctx = c.getContext('2d');
+        ctx.clearRect(0,0,targetW,targetH);
+        
+        if (!projGridEnabled) return;
+        c.style.display='block';
+        
+        ctx.lineWidth=1; ctx.strokeStyle="white"; ctx.globalAlpha=0.6;
+        for(let x=0; x<=GRID_COLS; x++) { 
+            const xPos = x * projGridW;
+            ctx.beginPath(); ctx.moveTo(xPos, 0); ctx.lineTo(xPos, targetH); ctx.stroke(); 
+        }
+        for(let y=0; y<=GRID_ROWS; y++) { 
+            const yPos = y * projGridH;
+            ctx.beginPath(); ctx.moveTo(0, yPos); ctx.lineTo(targetW, yPos); ctx.stroke(); 
+        }
+        ctx.lineWidth=2; ctx.strokeStyle="#00ff00"; ctx.globalAlpha=0.8;
+        const midX = (GRID_COLS/2) * projGridW;
+        ctx.beginPath(); ctx.moveTo(midX, 0); ctx.lineTo(midX, targetH); ctx.stroke();
+        const midY = (GRID_ROWS/2) * projGridH;
+        ctx.beginPath(); ctx.moveTo(0, midY); ctx.lineTo(targetW, midY); ctx.stroke();
+        ctx.globalAlpha=1;
     }
 
     // --- SOCKET HANDLERS ---
@@ -399,13 +465,13 @@
     socket.on('projectorBlank', ({blank}) => { if(isProjectorMode) document.getElementById('projectorBlank').style.display = blank?'block':'none'; });
     socket.on('projectorViewMode', ({mode}) => { if(isProjectorMode) { projectorViewMode=mode; updateDebug(`Projector Active\nOwner: ${projectorOwnerId}\nMode: ${mode}`); } });
     
-    // UPDATED SOCKET HANDLER FOR 2 DIMENSIONS
-    socket.on('projectorGrid', ({enabled, width, height}) => { 
-        if(isProjectorMode) { 
+    // UPDATED: Filter by Owner ID
+    socket.on('projectorGrid', ({ownerId, enabled, width, height}) => { 
+        if(isProjectorMode && ownerId === projectorOwnerId) { 
             projGridEnabled=enabled; 
             projGridW = width || 50;
             projGridH = height || 50;
-            drawProjectorGrid(); 
+            updateProjectorLayout();
             document.getElementById('projectorGridCanvas').style.display = enabled?'block':'none'; 
         } 
     });
@@ -418,6 +484,15 @@
       document.getElementById('fullscreenHint').style.display = 'none';
     });
     
+    socket.on('diceRolled', ({ dice, senderId }) => {
+        if (isProjectorMode) {
+            const overlay = document.getElementById('projectorDiceOverlay');
+            overlay.style.display = 'block';
+            renderDice(dice, 'projDiceContainer');
+            setTimeout(() => { overlay.style.display = 'none'; }, 8000);
+        }
+    });
+
     // --- STANDARD GAME LOGIC ---
     function getPlayerId() { return document.getElementById('playerIdInput').value.trim(); }
     function hostGame() { const n = document.getElementById('gameName').value.trim(); myPlayerId = getPlayerId(); if(n && myPlayerId) socket.emit('hostGame', {name:n, playerId:myPlayerId}); }
@@ -435,8 +510,6 @@
       document.getElementById('roomCode').innerText = r.id;
       document.getElementById('playerList').innerHTML = r.players.map(p => `<li>👤 ${p}</li>`).join('');
       updateProjectorLink();
-      
-      // Reset Calibration
       calibrationMode = false;
       document.getElementById('calibBtn').classList.remove('on');
       document.getElementById('calibPanel').style.display = 'none';
