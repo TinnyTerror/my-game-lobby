@@ -107,15 +107,15 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('projectorViewMode', { mode });
   });
 
-  // 8. PROJECTOR GRID
+ // 8. PROJECTOR GRID (Updated for Individual Control)
   socket.on('setProjectorGrid', ({ roomId, ownerId, enabled, width, height }) => {
     io.to(roomId).emit('projectorGrid', { 
+        ownerId: ownerId, // <--- KEY FIX: Pass the ID back so we know who sent it
         enabled, 
         width: parseInt(width) || 50, 
         height: parseInt(height) || 50 
     });
   });
-
   // 9. PROJECTOR BLANKING
   socket.on('setProjectorBlank', ({ roomId, ownerId, blank }) => {
     io.to(roomId).emit('projectorBlank', { blank });
