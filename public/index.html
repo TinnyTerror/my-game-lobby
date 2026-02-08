@@ -18,7 +18,8 @@
     .btn-camera { background: #28a745; color: white; }
     .btn-stop { background: #ff4d4f; color: white; font-weight: bold; display: none; }
     .btn-dice { background: #666; color: white; margin-top: 15px; } 
-    
+    .btn-crop { background: #ff9800; color: white; font-weight: bold; margin-top: 15px; } /* Crop Button */
+
     .dice-btn-row { display: flex; gap: 5px; margin-top: 10px; }
     .btn-d3  { background: #f0ad4e; color: white; font-weight: bold; }
     .btn-d6  { background: #333; color: white; font-weight: bold; }
@@ -43,11 +44,28 @@
     ul { list-style: none; padding: 0; }
     li { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
 
-    #videoPreview { width: 100%; border-radius: 8px; background: #000; display: none; margin-top: 10px; }
+    /* VIDEO PREVIEW & CROP OVERLAY */
+    #videoContainer { position: relative; width: 100%; margin-top: 10px; border-radius: 8px; overflow: hidden; background: #000; }
+    #videoPreview { width: 100%; display: block; }
+    
+    /* This box overlays the video to show what is being cropped */
+    #cropOverlay {
+        position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+        pointer-events: none; /* Let clicks pass through */
+        box-shadow: inset 0 0 0 0 rgba(0,0,0,0.5); /* This gets updated by JS */
+        border: 2px solid rgba(255, 255, 255, 0.5); /* Outer boundary */
+        display: none;
+    }
+    /* The "Hole" is created by manipulating box-shadow in JS */
+
     #sendStatus { display: none; font-size: 12px; opacity: 0.75; margin-top: 8px; color: #0070f3; white-space: pre-line; }
     
-    #calibPanel { display: none; margin-top: 10px; padding: 12px; border-radius: 12px; border: 1px solid #eee; background: #fafafa; text-align: left; }
-    #calibPanel h3 { margin: 0 0 10px 0; font-size: 14px; }
+    #calibPanel, #cropPanel { display: none; margin-top: 10px; padding: 12px; border-radius: 12px; border: 1px solid #eee; background: #fafafa; text-align: left; }
+    #calibPanel h3, #cropPanel h3 { margin: 0 0 10px 0; font-size: 14px; }
+    
+    /* Crop Sliders */
+    .slider-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
+    .slider-row input { width: 70%; margin: 0; padding: 0; }
 
     /* --- DICE STYLES --- */
     #diceTray { display: none; background: #eee; border-radius: 12px; padding: 15px; margin-top: 10px; border: 1px solid #ccc; }
@@ -64,21 +82,21 @@
     /* --- PROJECTOR MODE STYLES --- */
     #projectorView { display: none; position: fixed; inset: 0; width: 100%; height: 100%; background: black; z-index: 9999; align-items: center; justify-content: center; }
 
-    /* FUSED CONTAINER: This resizes based on User's Settings */
+    /* FUSED CONTAINER */
     #projectorContent {
         position: relative;
-        width: 100px; height: 100px; /* Default, overridden by JS */
+        width: 100px; height: 100px; 
         display: flex; justify-content: center; align-items: center;
     }
 
-    /* IMAGE: Stretches to fill the Fused Container */
+    /* IMAGE */
     #projectorImage {
       display: block; width: 100%; height: 100%;
       object-fit: fill; 
       z-index: 1;
     }
 
-    /* GRID: Stretches to fill the Fused Container */
+    /* GRID */
     #projectorGridCanvas { 
         position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
         z-index: 2; pointer-events: none; display: none; 
@@ -94,17 +112,14 @@
 
   <div id="projectorView" ondblclick="toggleFullScreen()">
     <div id="projectorDebug">Initializing...</div>
-    
     <div id="projectorContent">
         <img id="projectorImage" src="">
         <canvas id="projectorGridCanvas"></canvas>
     </div>
-
     <div id="projectorDiceOverlay">
         <div style="color:white; font-size:12px; margin-bottom:5px;">INCOMING ROLL:</div>
         <div id="projDiceContainer" class="dice-area" style="margin-top:0;"></div>
     </div>
-
     <div id="fullscreenHint">(Double-click screen for true fullscreen)</div>
   </div>
 
@@ -139,10 +154,35 @@
         <hr>
 
         <button class="btn-camera" onclick="startCamera()">📷 Open Camera</button>
-        <video id="videoPreview" autoplay playsinline></video>
+        
+        <div id="videoContainer">
+            <video id="videoPreview" autoplay playsinline></video>
+            <div id="cropOverlay"></div>
+        </div>
 
         <button id="startBtn" class="btn-primary" style="display:none;" onclick="startSending()">▶ Start Auto-Send (30s)</button>
         <button id="stopBtn" class="btn-stop" onclick="stopSending()">■ Stop Sending</button>
+
+        <button id="cropBtn" class="btn-crop" style="display:none;" onclick="toggleCropPanel()">✂️ Crop Camera</button>
+        
+        <div id="cropPanel">
+            <h3>Crop Settings (%)</h3>
+            <div class="slider-row">
+                <label>Top</label> <input type="range" id="cropTop" min="0" max="45" value="0" oninput="updateCrop()">
+            </div>
+            <div class="slider-row">
+                <label>Bottom</label> <input type="range" id="cropBottom" min="0" max="45" value="0" oninput="updateCrop()">
+            </div>
+            <div class="slider-row">
+                <label>Left</label> <input type="range" id="cropLeft" min="0" max="45" value="0" oninput="updateCrop()">
+            </div>
+            <div class="slider-row">
+                <label>Right</label> <input type="range" id="cropRight" min="0" max="45" value="0" oninput="updateCrop()">
+            </div>
+            <div style="font-size:11px; color:#666; margin-top:5px;">
+                Use sliders to cut out background. Only the clear area will be sent.
+            </div>
+        </div>
 
         <button class="btn-dice" onclick="toggleDiceTray()">🎲 Open Dice Tray</button>
         <div id="diceTray">
@@ -156,7 +196,6 @@
                     <option value="L">Large</option>
                 </select>
             </div>
-            
             <p style="font-size:12px; color:#666; margin-bottom:5px;">Select Type to Roll:</p>
             <div class="dice-btn-row">
                 <button class="btn-d3" onclick="rollDice(3, 'D3')">D3</button>
@@ -208,15 +247,12 @@
     let currentRoomId = null;
     let cameraStream = null;
     let sendIntervalId = null;
-    let sendStartTimeoutId = null;
     let myPlayerId = null;
 
     // Projector state
     let isProjectorMode = false;
     let projectorOwnerId = null;
     let projectorRoomId = null;
-    let blankTokenLocal = 0;
-    let lastBlankTokenSeen = -1;
     
     // Calibration state
     let calibrationMode = false;
@@ -224,18 +260,17 @@
 
     const SEND_EVERY_MS = 30000;
     const STAGGER_JOIN_MS = 15000;
-    const BLANK_BEFORE_MS = 220;
-    const BLANK_AFTER_MS  = 80;
-
+    
     // Grid Settings
     let gridEnabled = false;
     let gridW = 50;
     let gridH = 50;
-    
-    // Local Projector Grid State
     let projGridEnabled = false;
     let projGridW = 50;
     let projGridH = 50;
+    
+    // Crop Settings (Percentages 0-100)
+    let crop = { t: 0, b: 0, l: 0, r: 0 };
     
     const GRID_COLS = 30; 
     const GRID_ROWS = 22;
@@ -269,6 +304,53 @@
       loadGridPrefs();
       syncGridPanelUI();
     };
+
+    // --- CROP LOGIC ---
+    function toggleCropPanel() {
+        const panel = document.getElementById('cropPanel');
+        const overlay = document.getElementById('cropOverlay');
+        if (panel.style.display === 'block') {
+            panel.style.display = 'none';
+            overlay.style.display = 'none';
+        } else {
+            panel.style.display = 'block';
+            overlay.style.display = 'block';
+            updateCropOverlay(); // refresh visuals
+        }
+    }
+
+    function updateCrop() {
+        crop.t = parseInt(document.getElementById('cropTop').value);
+        crop.b = parseInt(document.getElementById('cropBottom').value);
+        crop.l = parseInt(document.getElementById('cropLeft').value);
+        crop.r = parseInt(document.getElementById('cropRight').value);
+        updateCropOverlay();
+    }
+
+    function updateCropOverlay() {
+        const overlay = document.getElementById('cropOverlay');
+        // We use inset box-shadow to darken the cropped area
+        // Order: Top Right Bottom Left
+        // But box-shadow inset doesn't support 4 distinct sides easily without overlap weirdness.
+        // Easier approach: clip-path? Or simple borders?
+        // Let's use border-width. 
+        // NOTE: border-width uses pixels usually, but we have percentages.
+        // Actually, easiest way to visualize crop on a fluid element is `clip-path`'s inverse or 4 divs.
+        // Let's use `box-shadow` on a centered transparent div.
+        
+        // A simple visual trick: Set box-shadow to be huge, but inset.
+        // Wait, box-shadow inset applies to the inside. 
+        // Let's just adjust the `top/left/right/bottom` properties of the overlay to MATCH the crop, and give it a border.
+        
+        overlay.style.top = crop.t + "%";
+        overlay.style.bottom = crop.b + "%";
+        overlay.style.left = crop.l + "%";
+        overlay.style.right = crop.r + "%";
+        
+        // The overlay represents the KEPT area.
+        // We want to darken the outside. We can do this by giving the overlay a huge outline.
+        overlay.style.outline = "1000px solid rgba(0,0,0,0.6)";
+    }
 
     // --- DICE LOGIC ---
     function toggleDiceTray() {
@@ -325,17 +407,6 @@
         }); 
     }
     
-    function blankMyProjector(on) {
-  if (!currentRoomId) return;
-  blankTokenLocal++;
-  socket.emit('setProjectorBlank', {
-    roomId: currentRoomId,
-    ownerId: myPlayerId,
-    blank: !!on,
-    token: blankTokenLocal
-  });
-}
-
     function toggleCalibrationMode() {
       calibrationMode = !calibrationMode;
       const btn = document.getElementById('calibBtn');
@@ -349,7 +420,6 @@
         btn.classList.remove('on'); btn.innerText = "🎯 Calibration Mode: OFF"; panel.style.display = 'none';
         setStatus("Calibration OFF: Projector shows opponent.");
         setProjectorViewMode('normal'); 
-        // Turn grid off
         socket.emit('setProjectorGrid', { roomId: currentRoomId, ownerId: myPlayerId, enabled: false, width: gridW, height: gridH });
       }
     }
@@ -361,6 +431,7 @@
         const v = document.getElementById('videoPreview'); v.srcObject = s; v.style.display = 'block';
         document.getElementById('startBtn').style.display = 'block';
         document.getElementById('calibBtn').style.display = 'block';
+        document.getElementById('cropBtn').style.display = 'block';
       }).catch(() => alert("Camera blocked!"));
     }
 
@@ -374,62 +445,55 @@
       if (!cameraStream || !currentRoomId) return;
       const canvas = document.getElementById('canvas');
       const ctx = canvas.getContext('2d');
+      const video = document.getElementById('videoPreview');
+      
+      // Canvas size (resolution of sent image)
       canvas.width = 1280; canvas.height = 720;
-      ctx.drawImage(document.getElementById('videoPreview'), 0, 0, 1280, 720);
-      if (calibrationMode) drawCenterDot(ctx, 1280, 720);
+      
+      // CROP MATH
+      const vidW = video.videoWidth;
+      const vidH = video.videoHeight;
+      if (!vidW || !vidH) return; // Video not ready
+
+      // Calculate Source (Camera) Coordinates based on percentages
+      const sx = (crop.l / 100) * vidW;
+      const sy = (crop.t / 100) * vidH;
+      const sWidth = vidW - ((crop.l + crop.r) / 100) * vidW;
+      const sHeight = vidH - ((crop.t + crop.b) / 100) * vidH;
+
+      // Draw from Crop Source -> To Full Canvas Destination
+      // This effectively "Zooms" the cropped area to fill the output
+      ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
+
+      if (calibrationMode) drawCenterDot(ctx, canvas.width, canvas.height);
       socket.emit('sendImage', { roomId: currentRoomId, image: canvas.toDataURL('image/jpeg', 0.6) });
       setStatus(`Sent snapshot at ${new Date().toLocaleTimeString()}`);
     }
 
     function captureAndSendWithBlank() {
-      if (calibrationMode) { captureAndSendFrame(); return; }
-      blankMyProjector(true);
-      setTimeout(() => { captureAndSendFrame(); setTimeout(() => blankMyProjector(false), BLANK_AFTER_MS); }, BLANK_BEFORE_MS);
+      captureAndSendFrame();
     }
 
     function startSending() {
-  if (!cameraStream || !currentRoomId) return alert("Setup first!");
-
-  if (sendIntervalId || sendStartTimeoutId) return;
-
-  const isJoinMode =
-    new URLSearchParams(window.location.search).get('mode') === 'join';
-  const d = isJoinMode ? STAGGER_JOIN_MS : 0;
-
-  setStatus(d ? `Starting in ${d / 1000}s...` : "Starting...");
-
-  sendStartTimeoutId = setTimeout(() => {
-    sendStartTimeoutId = null;
-
-    if (!cameraStream || !currentRoomId) return;
-
-    captureAndSendWithBlank();
-    sendIntervalId = setInterval(
-      captureAndSendWithBlank,
-      SEND_EVERY_MS
-    );
-
-    document.getElementById('startBtn').style.display = 'none';
-    document.getElementById('stopBtn').style.display = 'block';
-  }, d);
-}
-
+      if (!cameraStream || !currentRoomId) return alert("Setup first!");
+      if (sendIntervalId) return;
+      const d = (new URLSearchParams(window.location.search).get('mode') === 'join') ? STAGGER_JOIN_MS : 0;
+      setStatus(d ? `Starting in ${d/1000}s...` : "Starting...");
+      setTimeout(() => {
+        captureAndSendWithBlank();
+        sendIntervalId = setInterval(captureAndSendWithBlank, SEND_EVERY_MS);
+        document.getElementById('startBtn').style.display = 'none';
+        document.getElementById('stopBtn').style.display = 'block';
+      }, d);
+    }
 
     function stopSending() {
-  if (sendStartTimeoutId) {
-    clearTimeout(sendStartTimeoutId);
-    sendStartTimeoutId = null;
-  }
-  if (sendIntervalId) {
-    clearInterval(sendIntervalId);
-    sendIntervalId = null;
-  }
-
-  document.getElementById('stopBtn').style.display = 'none';
-  document.getElementById('startBtn').style.display = 'block';
-  setStatus("Stopped.");
-  blankMyProjector(false);
-}
+      if (sendIntervalId) clearInterval(sendIntervalId);
+      sendIntervalId = null;
+      document.getElementById('stopBtn').style.display = 'none';
+      document.getElementById('startBtn').style.display = 'block';
+      setStatus("Stopped.");
+    }
 
     // --- GRID UI ---
     function toggleGrid() { gridEnabled = !gridEnabled; syncGridPanelUI(); if(calibrationMode) sendGridUpdate(); }
@@ -496,21 +560,10 @@
 
     // --- SOCKET HANDLERS ---
     socket.on('errorMsg', alert);
-    socket.on('projectorBlank', ({ blank, ownerId, token }) => {
-  if (!isProjectorMode) return;
-  if (ownerId !== projectorOwnerId) return;
-
-  if (typeof token === 'number' && token < lastBlankTokenSeen) return;
-  if (typeof token === 'number') lastBlankTokenSeen = token;
-
-  document.getElementById('projectorBlank').style.display =
-    blank ? 'block' : 'none';
-});
-
-
+    socket.on('projectorBlank', ({blank}) => { if(isProjectorMode) document.getElementById('projectorBlank').style.display = blank?'block':'none'; });
     socket.on('projectorViewMode', ({mode}) => { if(isProjectorMode) { projectorViewMode=mode; updateDebug(`Projector Active\nOwner: ${projectorOwnerId}\nMode: ${mode}`); } });
     
-    // UPDATED: Filter by Owner ID
+    // Filter by Owner ID
     socket.on('projectorGrid', ({ownerId, enabled, width, height}) => { 
         if(isProjectorMode && ownerId === projectorOwnerId) { 
             projGridEnabled=enabled; 
