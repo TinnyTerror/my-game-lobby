@@ -4,170 +4,110 @@ const http = require('http');
 const server = http.createServer(app);
 const { Server } = require("socket.io");
 
-// 100 MB limit for images
+// Increase limit for image data to 100MB to prevent crashes on big photos
 const io = new Server(server, {
-  maxHttpBufferSize: 1e8
+  maxHttpBufferSize: 1e8 
 });
 
 app.use(express.static('public'));
 
-/**
- * games[roomId] = {
- *   id: string,
- *   name: string,
- *   players: [{ playerId: string, socketId: string }]
- * }
- */
 let games = {};
-
-/**
- * projectorSockets[roomId][ownerId] = Set(socketId)
- */
-let projectorSockets = {};
-
-function listPlayers(room) {
-  return room.players.map(p => p.playerId);
-}
-
-function ensureProjectorBucket(roomId, ownerId) {
-  if (!projectorSockets[roomId]) projectorSockets[roomId] = {};
-  if (!projectorSockets[roomId][ownerId]) projectorSockets[roomId][ownerId] = new Set();
-}
-
-function removeProjectorSocket(roomId, ownerId, socketId) {
-  const roomMap = projectorSockets[roomId];
-  if (!roomMap) return;
-
-  const set = roomMap[ownerId];
-  if (!set) return;
-
-  set.delete(socketId);
-
-  if (set.size === 0) delete roomMap[ownerId];
-  if (Object.keys(roomMap).length === 0) delete projectorSockets[roomId];
-}
-
-function removePlayerFromAllRooms(socket) {
-  let changed = false;
-
-  for (const roomId of Object.keys(games)) {
-    const room = games[roomId];
-    const before = room.players.length;
-
-    room.players = room.players.filter(p => p.socketId !== socket.id);
-
-    if (room.players.length !== before) {
-      changed = true;
-
-      if (room.players.length === 0) {
-        delete games[roomId];
-      } else {
-        io.to(roomId).emit('playerUpdate', listPlayers(room));
-      }
-    }
-  }
-
-  if (changed) io.emit('updateGameList', games);
-}
-
-function emitToOwnerProjectors(roomId, ownerId, eventName, payload) {
-  const roomMap = projectorSockets[roomId];
-  if (!roomMap || !roomMap[ownerId]) return;
-
-  for (const projectorSocketId of roomMap[ownerId]) {
-    io.to(projectorSocketId).emit(eventName, payload);
-  }
-}
 
 io.on('connection', (socket) => {
   socket.playerId = null;
-
-  // Projector socket identity
-  socket.isProjector = false;
-  socket.projectorRoomId = null;
-  socket.projectorOwnerId = null;
-
+  
+  // Send the list of games to the new user
   socket.emit('updateGameList', games);
 
-  // HOST
+  // 1. HOST GAME
   socket.on('hostGame', ({ name, playerId }) => {
     if (!name || !playerId) return;
 
     socket.playerId = playerId;
 
+    // Generate unique Room ID
     let roomId = Math.random().toString(36).substr(2, 5).toUpperCase();
-    while (games[roomId]) roomId = Math.random().toString(36).substr(2, 5).toUpperCase();
+    while (games[roomId]) {
+      roomId = Math.random().toString(36).substr(2, 5).toUpperCase();
+    }
 
-    games[roomId] = {
-      id: roomId,
-      name,
-      players: [{ playerId, socketId: socket.id }]
-    };
+    games[roomId] = { id: roomId, name: name, players: [playerId] };
 
     socket.join(roomId);
-
-    socket.emit('joinedRoom', { id: roomId, name, players: listPlayers(games[roomId]) });
+    socket.emit('joinedRoom', games[roomId]);
     io.emit('updateGameList', games);
   });
 
-  // JOIN
+  // 2. JOIN GAME
   socket.on('joinGame', ({ roomId, playerId }) => {
-    const room = games[roomId];
-    if (!room || !playerId) return;
-
-    // Prevent duplicate player IDs in the same room
-    if (room.players.some(p => p.playerId === playerId)) {
-      socket.emit('errorMsg', `Player ID "${playerId}" is already in this room. Choose a different one.`);
-      return;
-    }
+    if (!roomId || !playerId) return;
+    if (!games[roomId]) return;
 
     socket.playerId = playerId;
     socket.join(roomId);
 
-    room.players.push({ playerId, socketId: socket.id });
+    // Only add to list if not already there
+    if (!games[roomId].players.includes(playerId)) {
+        games[roomId].players.push(playerId);
+    }
 
-    io.to(roomId).emit('playerUpdate', listPlayers(room));
-    socket.emit('joinedRoom', { id: roomId, name: room.name, players: listPlayers(room) });
+    io.to(roomId).emit('playerUpdate', games[roomId].players);
+    socket.emit('joinedRoom', games[roomId]);
     io.emit('updateGameList', games);
   });
 
-  // PROJECTOR JOIN (room + owner)
+  // 3. JOIN AS PROJECTOR (Silent Mode)
   socket.on('joinAsProjector', ({ roomId, ownerId }) => {
-    const room = games[roomId];
-    if (!room || !roomId || !ownerId) return;
-
-    socket.isProjector = true;
-    socket.projectorRoomId = roomId;
-    socket.projectorOwnerId = ownerId;
-
-    socket.join(roomId);
-
-    ensureProjectorBucket(roomId, ownerId);
-    projectorSockets[roomId][ownerId].add(socket.id);
-
-    console.log(`Projector joined room=${roomId} owner=${ownerId} socket=${socket.id}`);
+    if (games[roomId]) {
+        socket.join(roomId);
+        console.log(`Projector joined room ${roomId} for owner ${ownerId}`);
+    }
   });
 
-  // Set projector view mode for an owner's projector(s)
-  // mode: "normal" => show opponent only
-  // mode: "calibrate" => show owner only
+  // 4. LEAVE GAME
+  socket.on('leaveGame', (roomId) => {
+    if (!games[roomId]) return;
+
+    socket.leave(roomId);
+    
+    // Remove player ID
+    games[roomId].players = games[roomId].players.filter(p => p !== socket.playerId);
+
+    if (games[roomId].players.length === 0) {
+      delete games[roomId];
+    } else {
+      io.to(roomId).emit('playerUpdate', games[roomId].players);
+    }
+
+    socket.emit('backToLobby');
+    io.emit('updateGameList', games);
+  });
+
+  // 5. IMAGE HANDLING
+  socket.on('sendImage', ({ roomId, image }) => {
+    if (!roomId || !image) return;
+    if (!games[roomId]) return;
+
+    // Broadcast to everyone in the room (Players AND Projectors)
+    // We attach the senderId so projectors know who to ignore
+    io.to(roomId).emit('receiveImage', { 
+        image: image, 
+        senderId: socket.playerId 
+    });
+  });
+
+  // 6. DICE HANDLING
+  socket.on('rollDice', ({ roomId, dice, senderId }) => {
+    if (!roomId || !games[roomId]) return;
+    io.to(roomId).emit('diceRolled', { dice, senderId });
+  });
+
+  // 7. PROJECTOR VIEW MODES (Calibration)
   socket.on('setProjectorViewMode', ({ roomId, ownerId, mode }) => {
-    const room = games[roomId];
-    if (!room || !roomId || !ownerId) return;
-
-    const safeMode = (mode === 'calibrate') ? 'calibrate' : 'normal';
-    emitToOwnerProjectors(roomId, ownerId, 'projectorViewMode', { mode: safeMode });
+    io.to(roomId).emit('projectorViewMode', { mode });
   });
 
-  // BLANKING CONTROL (targets owner's projector sockets)
-  socket.on('setProjectorBlank', ({ roomId, ownerId, blank }) => {
-    const room = games[roomId];
-    if (!room || !roomId || !ownerId) return;
-
-    emitToOwnerProjectors(roomId, ownerId, 'projectorBlank', { blank: !!blank });
-  });
-
-  // NEW: GRID SETTINGS (targets owner's projector sockets)
+  // 8. PROJECTOR GRID
   socket.on('setProjectorGrid', ({ roomId, ownerId, enabled, width, height }) => {
     io.to(roomId).emit('projectorGrid', { 
         enabled, 
@@ -175,55 +115,31 @@ io.on('connection', (socket) => {
         height: parseInt(height) || 50 
     });
   });
-    const safeEnabled = !!enabled;
-    let safeSpacing = parseInt(spacing, 10);
-    if (Number.isNaN(safeSpacing)) safeSpacing = 50;
-    safeSpacing = Math.max(5, Math.min(400, safeSpacing));
 
-    emitToOwnerProjectors(roomId, ownerId, 'projectorGrid', {
-      enabled: safeEnabled,
-      spacing: safeSpacing
-    });
+  // 9. PROJECTOR BLANKING
+  socket.on('setProjectorBlank', ({ roomId, ownerId, blank }) => {
+    io.to(roomId).emit('projectorBlank', { blank });
   });
 
-  // LEAVE
-  socket.on('leaveGame', (roomId) => {
-    const room = games[roomId];
-    if (!room) return;
-
-    socket.leave(roomId);
-
-    room.players = room.players.filter(p => p.socketId !== socket.id);
-
-    if (room.players.length === 0) {
-      delete games[roomId];
-    } else {
-      io.to(roomId).emit('playerUpdate', listPlayers(room));
-    }
-
-    socket.emit('backToLobby');
-    io.emit('updateGameList', games);
-  });
-
-  // IMAGE HANDLING
-  socket.on('sendImage', ({ roomId, image }) => {
-    const room = games[roomId];
-    if (!room || !roomId || !image) return;
-
-    if (typeof image !== 'string' || !image.startsWith('data:image/')) return;
-
-    io.to(roomId).emit('receiveImage', {
-      image,
-      senderId: socket.playerId
-    });
-  });
-
-  // DISCONNECT
+  // 10. DISCONNECT CLEANUP
   socket.on('disconnect', () => {
-    if (socket.isProjector && socket.projectorRoomId && socket.projectorOwnerId) {
-      removeProjectorSocket(socket.projectorRoomId, socket.projectorOwnerId, socket.id);
+    if (!socket.playerId) return;
+    let changed = false;
+
+    for (const roomId of Object.keys(games)) {
+      const room = games[roomId];
+      if (room.players.includes(socket.playerId)) {
+        room.players = room.players.filter(p => p !== socket.playerId);
+        changed = true;
+
+        if (room.players.length === 0) {
+          delete games[roomId];
+        } else {
+          io.to(roomId).emit('playerUpdate', room.players);
+        }
+      }
     }
-    removePlayerFromAllRooms(socket);
+    if (changed) io.emit('updateGameList', games);
   });
 });
 
