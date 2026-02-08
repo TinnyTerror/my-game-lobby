@@ -299,7 +299,7 @@
           </div>
 
           <div class="row">
-            <div>Grid Spacing</div>
+            <div>Square Size</div>
             <div class="pxInputWrap">
               <input id="gridSpacingInput" type="number" min="5" max="400" step="1" value="50"
                      oninput="onGridSpacingInput(this.value)" onblur="normalizeGridSpacingInput()">
@@ -309,7 +309,7 @@
           </div>
 
           <div style="font-size:11px; opacity:0.8; line-height:1.35;">
-            Tip: Turn Calibration ON so the projector shows YOUR camera view, then align the red center dot with your projector center.
+            Tip: Turn Calibration ON, enable the 22×30 grid, then adjust Square Size (px) until a square measures exactly 1×1 inch on your table.
           </div>
         </div>
 
@@ -358,6 +358,10 @@
     // Projector grid state
     let projectorGridEnabled = false;
     let projectorGridSpacing = 50;
+
+    const GRID_COLS = 22;
+    const GRID_ROWS = 30;
+
 
     // --- INIT ---
     window.onload = function() {
@@ -468,7 +472,7 @@
         btn.innerText = "🎯 Calibration Mode: ON";
         panel.style.display = 'block';
 
-        setStatus("Calibration ON:\nProjector shows YOUR camera feed.\nBlanking disabled.\nCenter dot is added to snapshots.");
+        setStatus("Calibration ON:\nProjector shows YOUR camera feed.\nBlanking disabled.\nUse the 22×30 grid to size 1×1 inch squares.");
         setProjectorViewMode('calibrate');
         setProjectorGrid(gridEnabled, gridSpacing);
 
@@ -489,42 +493,6 @@
       socket.emit('setProjectorBlank', { roomId: currentRoomId, ownerId: myPlayerId, blank: !!on });
     }
 
-    // ✅ NEW: Draw red dot + crosshair at exact center of the outgoing snapshot (calibration only)
-    function drawCenterDot(ctx, w, h) {
-      const cx = Math.floor(w / 2);
-      const cy = Math.floor(h / 2);
-
-      const dotRadius = 8;     // red dot size
-      const ringRadius = 12;   // white ring size
-      const crossLen = 24;     // half-length of crosshair lines
-
-      ctx.save();
-
-      // white ring (visibility on dark/bright)
-      ctx.beginPath();
-      ctx.arc(cx, cy, ringRadius, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(255,255,255,0.9)";
-      ctx.fill();
-
-      // red dot
-      ctx.beginPath();
-      ctx.arc(cx, cy, dotRadius, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(255,0,0,0.95)";
-      ctx.fill();
-
-      // red crosshair
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "rgba(255,0,0,0.95)";
-      ctx.beginPath();
-      ctx.moveTo(cx - crossLen, cy);
-      ctx.lineTo(cx + crossLen, cy);
-      ctx.moveTo(cx, cy - crossLen);
-      ctx.lineTo(cx, cy + crossLen);
-      ctx.stroke();
-
-      ctx.restore();
-    }
-
     // --- Capture & send ---
     function captureAndSendFrame() {
       const video = document.getElementById('videoPreview');
@@ -536,11 +504,6 @@
 
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      // ✅ Add center marker only during calibration
-      if (calibrationMode) {
-        drawCenterDot(ctx, canvas.width, canvas.height);
-      }
 
       const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
       socket.emit('sendImage', { roomId: currentRoomId, image: dataUrl });
@@ -685,47 +648,59 @@
       resize();
     }
 
-    function drawProjectorGrid() {
-      if (!isProjectorMode) return;
-      const canvas = document.getElementById('projectorGridCanvas');
-      if (!canvas) return;
+function drawProjectorGrid() {
+  if (!isProjectorMode) return;
+  const canvas = document.getElementById('projectorGridCanvas');
+  if (!canvas) return;
 
-      if (!projectorGridEnabled) {
-        canvas.style.display = 'none';
-        return;
-      }
+  if (!projectorGridEnabled) {
+    canvas.style.display = 'none';
+    return;
+  }
 
-      canvas.style.display = 'block';
+  canvas.style.display = 'block';
 
-      const ctx = canvas.getContext('2d');
-      const dpr = window.devicePixelRatio || 1;
-      const w = canvas.width;
-      const h = canvas.height;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.width;
+  const h = canvas.height;
 
-      ctx.clearRect(0, 0, w, h);
+  ctx.clearRect(0, 0, w, h);
 
-      const spacing = Math.max(5, projectorGridSpacing) * dpr;
+  // Treat spacing as "square size in pixels"
+  const square = Math.max(5, projectorGridSpacing) * dpr;
 
-      ctx.globalAlpha = 0.45;
-      ctx.lineWidth = 1 * dpr;
-      ctx.strokeStyle = "white";
+  // Fixed grid size: 22 x 30 squares, centered
+  const gridW = GRID_COLS * square;
+  const gridH = GRID_ROWS * square;
+  const startX = (w - gridW) / 2;
+  const startY = (h - gridH) / 2;
 
-      for (let x = 0; x <= w; x += spacing) {
-        ctx.beginPath();
-        ctx.moveTo(x + 0.5 * dpr, 0);
-        ctx.lineTo(x + 0.5 * dpr, h);
-        ctx.stroke();
-      }
+  ctx.globalAlpha = 0.45;
+  ctx.lineWidth = 1 * dpr;
+  ctx.strokeStyle = "white";
 
-      for (let y = 0; y <= h; y += spacing) {
-        ctx.beginPath();
-        ctx.moveTo(0, y + 0.5 * dpr);
-        ctx.lineTo(w, y + 0.5 * dpr);
-        ctx.stroke();
-      }
+  // Vertical lines (cols)
+  for (let c = 0; c <= GRID_COLS; c++) {
+    const x = startX + c * square;
+    ctx.beginPath();
+    ctx.moveTo(x + 0.5 * dpr, startY);
+    ctx.lineTo(x + 0.5 * dpr, startY + gridH);
+    ctx.stroke();
+  }
 
-      ctx.globalAlpha = 1;
-    }
+  // Horizontal lines (rows)
+  for (let r = 0; r <= GRID_ROWS; r++) {
+    const y = startY + r * square;
+    ctx.beginPath();
+    ctx.moveTo(startX, y + 0.5 * dpr);
+    ctx.lineTo(startX + gridW, y + 0.5 * dpr);
+    ctx.stroke();
+  }
+
+  ctx.globalAlpha = 1;
+}
+
 
     // --- SOCKET EVENTS ---
     socket.on('errorMsg', (msg) => alert(msg));
