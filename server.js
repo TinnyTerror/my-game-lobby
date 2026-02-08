@@ -168,10 +168,13 @@ io.on('connection', (socket) => {
   });
 
   // NEW: GRID SETTINGS (targets owner's projector sockets)
-  socket.on('setProjectorGrid', ({ roomId, ownerId, enabled, spacing }) => {
-    const room = games[roomId];
-    if (!room || !roomId || !ownerId) return;
-
+  socket.on('setProjectorGrid', ({ roomId, ownerId, enabled, width, height }) => {
+    io.to(roomId).emit('projectorGrid', { 
+        enabled, 
+        width: parseInt(width) || 50, 
+        height: parseInt(height) || 50 
+    });
+  });
     const safeEnabled = !!enabled;
     let safeSpacing = parseInt(spacing, 10);
     if (Number.isNaN(safeSpacing)) safeSpacing = 50;
