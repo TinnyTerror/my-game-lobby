@@ -18,7 +18,7 @@
     .btn-camera { background: #28a745; color: white; }
     .btn-stop { background: #ff4d4f; color: white; font-weight: bold; display: none; }
     .btn-dice { background: #666; color: white; margin-top: 15px; } 
-    .btn-crop { background: #ff9800; color: white; font-weight: bold; margin-top: 15px; } /* Crop Button */
+    .btn-crop { background: #ff9800; color: white; font-weight: bold; margin-top: 15px; } 
 
     .dice-btn-row { display: flex; gap: 5px; margin-top: 10px; }
     .btn-d3  { background: #f0ad4e; color: white; font-weight: bold; }
@@ -48,22 +48,19 @@
     #videoContainer { position: relative; width: 100%; margin-top: 10px; border-radius: 8px; overflow: hidden; background: #000; }
     #videoPreview { width: 100%; display: block; }
     
-    /* This box overlays the video to show what is being cropped */
     #cropOverlay {
         position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-        pointer-events: none; /* Let clicks pass through */
-        box-shadow: inset 0 0 0 0 rgba(0,0,0,0.5); /* This gets updated by JS */
-        border: 2px solid rgba(255, 255, 255, 0.5); /* Outer boundary */
+        pointer-events: none; 
+        box-shadow: inset 0 0 0 0 rgba(0,0,0,0.5); 
+        border: 2px solid rgba(255, 255, 255, 0.5); 
         display: none;
     }
-    /* The "Hole" is created by manipulating box-shadow in JS */
 
     #sendStatus { display: none; font-size: 12px; opacity: 0.75; margin-top: 8px; color: #0070f3; white-space: pre-line; }
     
     #calibPanel, #cropPanel { display: none; margin-top: 10px; padding: 12px; border-radius: 12px; border: 1px solid #eee; background: #fafafa; text-align: left; }
     #calibPanel h3, #cropPanel h3 { margin: 0 0 10px 0; font-size: 14px; }
     
-    /* Crop Sliders */
     .slider-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
     .slider-row input { width: 70%; margin: 0; padding: 0; }
 
@@ -82,21 +79,19 @@
     /* --- PROJECTOR MODE STYLES --- */
     #projectorView { display: none; position: fixed; inset: 0; width: 100%; height: 100%; background: black; z-index: 9999; align-items: center; justify-content: center; }
 
-    /* FUSED CONTAINER */
+    /* FUSED CONTAINER - FIXED DEFAULT SIZE SO IT IS NEVER TINY */
     #projectorContent {
         position: relative;
-        width: 100px; height: 100px; 
+        width: 1500px; height: 1100px; /* A healthy default before calibration kicks in */
         display: flex; justify-content: center; align-items: center;
     }
 
-    /* IMAGE */
     #projectorImage {
       display: block; width: 100%; height: 100%;
       object-fit: fill; 
       z-index: 1;
     }
 
-    /* GRID */
     #projectorGridCanvas { 
         position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
         z-index: 2; pointer-events: none; display: none; 
@@ -167,21 +162,11 @@
         
         <div id="cropPanel">
             <h3>Crop Settings (%)</h3>
-            <div class="slider-row">
-                <label>Top</label> <input type="range" id="cropTop" min="0" max="45" value="0" oninput="updateCrop()">
-            </div>
-            <div class="slider-row">
-                <label>Bottom</label> <input type="range" id="cropBottom" min="0" max="45" value="0" oninput="updateCrop()">
-            </div>
-            <div class="slider-row">
-                <label>Left</label> <input type="range" id="cropLeft" min="0" max="45" value="0" oninput="updateCrop()">
-            </div>
-            <div class="slider-row">
-                <label>Right</label> <input type="range" id="cropRight" min="0" max="45" value="0" oninput="updateCrop()">
-            </div>
-            <div style="font-size:11px; color:#666; margin-top:5px;">
-                Use sliders to cut out background. Only the clear area will be sent.
-            </div>
+            <div class="slider-row"><label>Top</label> <input type="range" id="cropTop" min="0" max="45" value="0" oninput="updateCrop()"></div>
+            <div class="slider-row"><label>Bottom</label> <input type="range" id="cropBottom" min="0" max="45" value="0" oninput="updateCrop()"></div>
+            <div class="slider-row"><label>Left</label> <input type="range" id="cropLeft" min="0" max="45" value="0" oninput="updateCrop()"></div>
+            <div class="slider-row"><label>Right</label> <input type="range" id="cropRight" min="0" max="45" value="0" oninput="updateCrop()"></div>
+            <div style="font-size:11px; color:#666; margin-top:5px;">Use sliders to cut out background. Only the clear area will be sent.</div>
         </div>
 
         <button class="btn-dice" onclick="toggleDiceTray()">🎲 Open Dice Tray</button>
@@ -249,12 +234,10 @@
     let sendIntervalId = null;
     let myPlayerId = null;
 
-    // Projector state
     let isProjectorMode = false;
     let projectorOwnerId = null;
     let projectorRoomId = null;
     
-    // Calibration state
     let calibrationMode = false;
     let projectorViewMode = 'normal';
 
@@ -269,9 +252,7 @@
     let projGridW = 50;
     let projGridH = 50;
     
-    // Crop Settings (Percentages 0-100)
     let crop = { t: 0, b: 0, l: 0, r: 0 };
-    
     const GRID_COLS = 30; 
     const GRID_ROWS = 22;
 
@@ -288,9 +269,8 @@
         document.getElementById('projectorView').style.display = 'flex';
         updateDebug(`Projector Active\nOwner: ${projectorOwnerId}\nMode: normal`);
         
-        // Init canvas
-        const c = document.getElementById('projectorGridCanvas');
-        c.width = 100; c.height = 100; // Placeholder
+        // INSTANTLY SIZE PROJECTOR ON LOAD
+        updateProjectorLayout();
 
         if (projectorRoomId && projectorOwnerId) {
           socket.emit('joinAsProjector', { roomId: projectorRoomId, ownerId: projectorOwnerId });
@@ -315,7 +295,7 @@
         } else {
             panel.style.display = 'block';
             overlay.style.display = 'block';
-            updateCropOverlay(); // refresh visuals
+            updateCropOverlay(); 
         }
     }
 
@@ -329,26 +309,10 @@
 
     function updateCropOverlay() {
         const overlay = document.getElementById('cropOverlay');
-        // We use inset box-shadow to darken the cropped area
-        // Order: Top Right Bottom Left
-        // But box-shadow inset doesn't support 4 distinct sides easily without overlap weirdness.
-        // Easier approach: clip-path? Or simple borders?
-        // Let's use border-width. 
-        // NOTE: border-width uses pixels usually, but we have percentages.
-        // Actually, easiest way to visualize crop on a fluid element is `clip-path`'s inverse or 4 divs.
-        // Let's use `box-shadow` on a centered transparent div.
-        
-        // A simple visual trick: Set box-shadow to be huge, but inset.
-        // Wait, box-shadow inset applies to the inside. 
-        // Let's just adjust the `top/left/right/bottom` properties of the overlay to MATCH the crop, and give it a border.
-        
         overlay.style.top = crop.t + "%";
         overlay.style.bottom = crop.b + "%";
         overlay.style.left = crop.l + "%";
         overlay.style.right = crop.r + "%";
-        
-        // The overlay represents the KEPT area.
-        // We want to darken the outside. We can do this by giving the overlay a huge outline.
         overlay.style.outline = "1000px solid rgba(0,0,0,0.6)";
     }
 
@@ -447,22 +411,17 @@
       const ctx = canvas.getContext('2d');
       const video = document.getElementById('videoPreview');
       
-      // Canvas size (resolution of sent image)
       canvas.width = 1280; canvas.height = 720;
       
-      // CROP MATH
       const vidW = video.videoWidth;
       const vidH = video.videoHeight;
-      if (!vidW || !vidH) return; // Video not ready
+      if (!vidW || !vidH) return; 
 
-      // Calculate Source (Camera) Coordinates based on percentages
       const sx = (crop.l / 100) * vidW;
       const sy = (crop.t / 100) * vidH;
       const sWidth = vidW - ((crop.l + crop.r) / 100) * vidW;
       const sHeight = vidH - ((crop.t + crop.b) / 100) * vidH;
 
-      // Draw from Crop Source -> To Full Canvas Destination
-      // This effectively "Zooms" the cropped area to fill the output
       ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
 
       if (calibrationMode) drawCenterDot(ctx, canvas.width, canvas.height);
@@ -563,7 +522,6 @@
     socket.on('projectorBlank', ({blank}) => { if(isProjectorMode) document.getElementById('projectorBlank').style.display = blank?'block':'none'; });
     socket.on('projectorViewMode', ({mode}) => { if(isProjectorMode) { projectorViewMode=mode; updateDebug(`Projector Active\nOwner: ${projectorOwnerId}\nMode: ${mode}`); } });
     
-    // Filter by Owner ID
     socket.on('projectorGrid', ({ownerId, enabled, width, height}) => { 
         if(isProjectorMode && ownerId === projectorOwnerId) { 
             projGridEnabled=enabled; 
@@ -600,6 +558,7 @@
       const l = document.getElementById('gameList'); l.innerHTML = '';
       Object.values(g).forEach(r => l.innerHTML += `<li><b>${r.name}</b> <button class="btn-primary" style="width:auto; padding:5px;" onclick="joinGame('${r.id}')">Join</button></li>`);
     });
+    
     socket.on('joinedRoom', (r) => {
       currentRoomId = r.id;
       document.getElementById('lobbyScreen').classList.remove('active');
@@ -608,11 +567,19 @@
       document.getElementById('roomCode').innerText = r.id;
       document.getElementById('playerList').innerHTML = r.players.map(p => `<li>👤 ${p}</li>`).join('');
       updateProjectorLink();
+      
+      // Reset Calibration
       calibrationMode = false;
       document.getElementById('calibBtn').classList.remove('on');
       document.getElementById('calibPanel').style.display = 'none';
       setProjectorViewMode('normal');
+      
+      // AUTO-SYNC GRID UPON JOINING
+      loadGridPrefs();
+      syncGridPanelUI();
+      sendGridUpdate();
     });
+    
     socket.on('playerUpdate', (p) => document.getElementById('playerList').innerHTML = p.map(u => `<li>👤 ${u}</li>`).join(''));
     socket.on('backToLobby', () => {
       currentRoomId = null; stopSending();
