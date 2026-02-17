@@ -655,6 +655,8 @@
     let currentRoomId = null;
     let cameraStream = null;
     let sendIntervalId = null;
+    let sendArmTimeoutId = null;   // prevents multiple queued setTimeouts
+    let isSending = false;         // UI/state lock
     let myPlayerId = null;
 
     let isProjectorMode = false;
@@ -861,25 +863,37 @@
 
     // ---------- Camera & sending ----------
     function startCamera() {
-      navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(s => {
-        cameraStream = s;
-        const v = document.getElementById('videoPreview');
-        v.srcObject = s;
-        v.style.display = 'block';
+  // If camera already open, don’t reopen it — just ensure UI is visible
+  if (cameraStream) {
+    const v = document.getElementById('videoPreview');
+    v.style.display = 'block';
 
-        // show send controls
-        document.getElementById('startBtn').classList.remove('hidden');
-        document.getElementById('stopBtn').classList.add('hidden');
+    // Only show Start if not already sending
+    if (!sendIntervalId && !sendArmTimeoutId) {
+      document.getElementById('startBtn').classList.remove('hidden');
+      document.getElementById('stopBtn').classList.add('hidden');
+    } else {
+      document.getElementById('startBtn').classList.add('hidden');
+      document.getElementById('stopBtn').classList.remove('hidden');
+    }
+    return;
+  }
 
-        setTopStatus(`ROOM: ${currentRoomId || "----"}  |  camera: ready`, true);
-      }).catch(() => alert("Camera blocked!"));
+  navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(s => {
+    cameraStream = s;
+    const v = document.getElementById('videoPreview');
+    v.srcObject = s;
+    v.style.display = 'block';
+
+    // Only show Start if not already sending
+    if (!sendIntervalId && !sendArmTimeoutId) {
+      document.getElementById('startBtn').classList.remove('hidden');
+      document.getElementById('stopBtn').classList.add('hidden');
     }
 
-    function drawCenterDot(ctx, w, h) {
-      const cx = w/2, cy = h/2;
-      ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI*2); ctx.strokeStyle="rgba(255,255,255,0.8)"; ctx.lineWidth=3; ctx.stroke();
-      ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI*2); ctx.fillStyle="rgba(255,0,0,1)"; ctx.fill();
-    }
+    setStatus("Camera ready.");
+  }).catch(() => alert("Camera blocked!"));
+}
 
     function captureAndSendFrame() {
       if (!cameraStream || !currentRoomId) return;
@@ -908,31 +922,72 @@
       setStatus(`Sent snapshot at ${new Date().toLocaleTimeString()}`);
     }
 
-    function startSending() {
-      if (!cameraStream || !currentRoomId) return alert("Setup first!");
-      if (sendIntervalId) return;
+function startSending() {
+  if (!cameraStream || !currentRoomId) return alert("Setup first!");
 
-      const d = (new URLSearchParams(window.location.search).get('mode') === 'join') ? STAGGER_JOIN_MS : 0;
-      setStatus(d ? `Starting in ${d/1000}s...` : "Starting...");
+  // Prevent double-click / multi-click scheduling
+  if (isSending || sendIntervalId || sendArmTimeoutId) {
+    setStatus("Already starting / sending...");
+    return;
+  }
 
-      setTimeout(() => {
-        captureAndSendFrame();
-        sendIntervalId = setInterval(captureAndSendFrame, SEND_EVERY_MS);
+  const video = document.getElementById('videoPreview');
 
-        document.getElementById('startBtn').classList.add('hidden');
-        document.getElementById('stopBtn').classList.remove('hidden');
-      }, d);
-    }
+  // Lock immediately so spam clicks can’t queue multiple timers
+  isSending = true;
+
+  // UI: switch to "Stop" immediately so user sees it latched
+  document.getElementById('startBtn').classList.add('hidden');
+  document.getElementById('stopBtn').classList.remove('hidden');
+
+  const d = (new URLSearchParams(window.location.search).get('mode') === 'join') ? STAGGER_JOIN_MS : 0;
+  setStatus(d ? `Starting in ${d/1000}s...` : "Starting...");
+
+  // Ensure video has dimensions before first capture
+  const waitForVideoReady = () => new Promise((resolve) => {
+    const readyNow = () => (video.videoWidth && video.videoHeight);
+    if (readyNow()) return resolve();
+
+    const onReady = () => {
+      video.removeEventListener('loadedmetadata', onReady);
+      video.removeEventListener('canplay', onReady);
+      resolve();
+    };
+    video.addEventListener('loadedmetadata', onReady);
+    video.addEventListener('canplay', onReady);
+
+    // Safety: resolve after 2s even if events don’t fire
+    setTimeout(resolve, 2000);
+  });
+
+  sendArmTimeoutId = setTimeout(async () => {
+    sendArmTimeoutId = null;
+
+    await waitForVideoReady();
+    captureAndSendFrame();
+
+    sendIntervalId = setInterval(captureAndSendFrame, SEND_EVERY_MS);
+    setStatus(`Auto-send running (every ${SEND_EVERY_MS/1000}s).`);
+  }, d);
+}
 
     function stopSending() {
-      if (sendIntervalId) clearInterval(sendIntervalId);
-      sendIntervalId = null;
+  if (sendArmTimeoutId) {
+    clearTimeout(sendArmTimeoutId);
+    sendArmTimeoutId = null;
+  }
 
-      document.getElementById('stopBtn').classList.add('hidden');
-      document.getElementById('startBtn').classList.remove('hidden');
+  if (sendIntervalId) {
+    clearInterval(sendIntervalId);
+    sendIntervalId = null;
+  }
 
-      setStatus("Stopped.");
-    }
+  isSending = false;
+
+  document.getElementById('stopBtn').classList.add('hidden');
+  document.getElementById('startBtn').classList.remove('hidden');
+  setStatus("Stopped.");
+}
 
     // ---------- Grid UI ----------
     function toggleGrid() {
