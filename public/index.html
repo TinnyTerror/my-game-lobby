@@ -916,8 +916,6 @@
 
       ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
 
-      if (calibrationMode) drawCenterDot(ctx, canvas.width, canvas.height);
-
       socket.emit('sendImage', { roomId: currentRoomId, image: canvas.toDataURL('image/jpeg', 0.6) });
       setStatus(`Sent snapshot at ${new Date().toLocaleTimeString()}`);
     }
