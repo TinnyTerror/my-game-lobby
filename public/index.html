@@ -33,35 +33,17 @@
       width:100%;
       margin:0;
       padding:0;
-      background: radial-gradient(1200px 800px at 50% 10%, #1b2a5a 0%, var(--bg0) 55%, #000 100%);
+      background: transparent !important; /* let the site behind show through */
       color: var(--ink);
       overflow:hidden; /* iframe friendly */
       font-family: var(--sans);
     }
 
     /* Scanlines + glow */
-    body:before{
-      content:"";
-      position:fixed;
-      inset:0;
-      pointer-events:none;
-      background:
-        repeating-linear-gradient(to bottom,
-          rgba(0,0,0,.20) 0px,
-          rgba(0,0,0,.20) 1px,
-          rgba(0,0,0,0) 3px,
-          rgba(0,0,0,0) 5px);
-      opacity:.38;
-      mix-blend-mode: overlay;
-    }
+    body:before,
     body:after{
-      content:"";
-      position:fixed;
-      inset:-20px;
-      pointer-events:none;
-      background: radial-gradient(closest-side at 50% 20%, rgba(0,255,213,.12), rgba(0,0,0,0));
-      filter: blur(8px);
-      opacity:.45;
+      content:none !important;
+      display:none !important;
     }
 
     /* Utility */
