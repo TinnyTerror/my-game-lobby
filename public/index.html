@@ -1075,6 +1075,25 @@ function startSending() {
       ctx.globalAlpha=1;
     }
 
+    function goToLobbyLocal() {
+  currentRoomId = null;
+  stopSending();
+
+  // stop camera
+  if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+  cameraStream = null;
+
+  // close drawers
+  document.getElementById('settingsDrawer').classList.remove('active');
+  document.getElementById('diceDrawer').classList.remove('active');
+  document.getElementById('cropPanel').classList.remove('active');
+  document.getElementById('cropOverlay').style.display = 'none';
+
+  showScreen('screenMode');
+  setTopStatus(`ID: ${myPlayerId || "----"}  |  choose host/join`, true);
+  projGridEnabled = false;
+}
+
     // ---------- Socket handlers ----------
     socket.on('errorMsg', alert);
 
@@ -1160,9 +1179,9 @@ function startSending() {
       document.getElementById('playerList').innerHTML = p.map(u => `<li>👤 <span class="mono">${escapeHtml(u)}</span></li>`).join('');
     });
 
-    socket.on('backToLobby', () => {
-      currentRoomId = null;
-      stopSending();
+socket.on('backToLobby', () => {
+  goToLobbyLocal();
+});
 
       // stop camera
       if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
@@ -1199,8 +1218,16 @@ function startSending() {
     }
 
     function leaveGame() {
-      if(currentRoomId) socket.emit('leaveGame', currentRoomId);
-    }
+  // keep a copy before goToLobbyLocal clears it
+  const roomId = currentRoomId;
+
+  // Always return UI immediately (even if socket is flaky)
+  goToLobbyLocal();
+
+  // Then inform server so the room/player list stays correct
+  if (roomId) socket.emit('leaveGame', roomId);
+}
+
 
     // ---------- Small safety ----------
     function escapeHtml(str){
