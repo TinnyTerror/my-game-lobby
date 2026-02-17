@@ -531,7 +531,7 @@
                 </div>
 
                 <div class="btnrow" style="margin-top:10px;">
-                  <button id="startBtn" class="primary hidden" onclick="startSending()">▶ Start Auto-Send (30s)</button>
+                  <button id="startBtn" class="primary hidden" onclick="startSending()">▶ Start Auto-Send (20s)</button>
                   <button id="stopBtn" class="bad hidden" onclick="stopSending()">■ Stop Sending</button>
                 </div>
 
@@ -668,6 +668,10 @@
 
     const SEND_EVERY_MS = 20000;
     const STAGGER_JOIN_MS = 10000;
+
+    // Target outgoing size (always send 1080p frames)
+    const OUT_W = 1920;
+    const OUT_H = 1080;
 
     // Grid settings
     let gridEnabled = false;
@@ -863,129 +867,155 @@
 
     // ---------- Camera & sending ----------
     function startCamera() {
-  // If camera already open, don’t reopen it — just ensure UI is visible
-  if (cameraStream) {
-    const v = document.getElementById('videoPreview');
-    v.style.display = 'block';
+      // If camera already open, don’t reopen it — just ensure UI is visible
+      if (cameraStream) {
+        const v = document.getElementById('videoPreview');
+        v.style.display = 'block';
 
-    // Only show Start if not already sending
-    if (!sendIntervalId && !sendArmTimeoutId) {
-      document.getElementById('startBtn').classList.remove('hidden');
-      document.getElementById('stopBtn').classList.add('hidden');
-    } else {
-      document.getElementById('startBtn').classList.add('hidden');
-      document.getElementById('stopBtn').classList.remove('hidden');
+        // Only show Start if not already sending
+        if (!sendIntervalId && !sendArmTimeoutId) {
+          document.getElementById('startBtn').classList.remove('hidden');
+          document.getElementById('stopBtn').classList.add('hidden');
+        } else {
+          document.getElementById('startBtn').classList.add('hidden');
+          document.getElementById('stopBtn').classList.remove('hidden');
+        }
+        return;
+      }
+
+      // Ask for 1080p; browser will fall back if unavailable.
+      navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: OUT_W },
+          height: { ideal: OUT_H }
+        },
+        audio: false
+      }).then(s => {
+        cameraStream = s;
+        const v = document.getElementById('videoPreview');
+        v.srcObject = s;
+        v.style.display = 'block';
+
+        // Only show Start if not already sending
+        if (!sendIntervalId && !sendArmTimeoutId) {
+          document.getElementById('startBtn').classList.remove('hidden');
+          document.getElementById('stopBtn').classList.add('hidden');
+        }
+
+        // Report actual capture size (once metadata is ready)
+        const report = () => {
+          const w = v.videoWidth || 0;
+          const h = v.videoHeight || 0;
+          if (w && h) setStatus(`Camera ready. Source: ${w}×${h}. Sending: ${OUT_W}×${OUT_H}.`);
+        };
+        v.addEventListener('loadedmetadata', report, { once: true });
+        v.addEventListener('canplay', report, { once: true });
+
+        setStatus("Camera starting…");
+      }).catch(() => alert("Camera blocked!"));
     }
-    return;
-  }
-
-  navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(s => {
-    cameraStream = s;
-    const v = document.getElementById('videoPreview');
-    v.srcObject = s;
-    v.style.display = 'block';
-
-    // Only show Start if not already sending
-    if (!sendIntervalId && !sendArmTimeoutId) {
-      document.getElementById('startBtn').classList.remove('hidden');
-      document.getElementById('stopBtn').classList.add('hidden');
-    }
-
-    setStatus("Camera ready.");
-  }).catch(() => alert("Camera blocked!"));
-}
 
     function captureAndSendFrame() {
       if (!cameraStream || !currentRoomId) return;
 
       const canvas = document.getElementById('canvas');
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext('2d', { alpha: false });
       const video = document.getElementById('videoPreview');
-
-      canvas.width = 1280;
-      canvas.height = 720;
 
       const vidW = video.videoWidth;
       const vidH = video.videoHeight;
       if (!vidW || !vidH) return;
 
+      // We ALWAYS output 1080p frames.
+      // If the camera is higher res: we downscale to 1080p.
+      // If the camera is lower res: we upscale to 1080p (quality won't magically improve, but the receiver always gets 1080p).
+      canvas.width = OUT_W;
+      canvas.height = OUT_H;
+
+      // Crop in SOURCE space (percent of original capture)
       const sx = (crop.l / 100) * vidW;
       const sy = (crop.t / 100) * vidH;
       const sWidth = vidW - ((crop.l + crop.r) / 100) * vidW;
       const sHeight = vidH - ((crop.t + crop.b) / 100) * vidH;
 
+      // Improve scaling quality where supported
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+
+      // Draw to 1080p output
       ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
 
-      socket.emit('sendImage', { roomId: currentRoomId, image: canvas.toDataURL('image/jpeg', 0.6) });
-      setStatus(`Sent snapshot at ${new Date().toLocaleTimeString()}`);
+      // Slightly higher JPEG quality for 1080p
+      socket.emit('sendImage', { roomId: currentRoomId, image: canvas.toDataURL('image/jpeg', 0.75) });
+      setStatus(`Sent ${OUT_W}×${OUT_H} at ${new Date().toLocaleTimeString()}`);
     }
 
-function startSending() {
-  if (!cameraStream || !currentRoomId) return alert("Setup first!");
+    function startSending() {
+      if (!cameraStream || !currentRoomId) return alert("Setup first!");
 
-  // Prevent double-click / multi-click scheduling
-  if (isSending || sendIntervalId || sendArmTimeoutId) {
-    setStatus("Already starting / sending...");
-    return;
-  }
+      // Prevent double-click / multi-click scheduling
+      if (isSending || sendIntervalId || sendArmTimeoutId) {
+        setStatus("Already starting / sending...");
+        return;
+      }
 
-  const video = document.getElementById('videoPreview');
+      const video = document.getElementById('videoPreview');
 
-  // Lock immediately so spam clicks can’t queue multiple timers
-  isSending = true;
+      // Lock immediately so spam clicks can’t queue multiple timers
+      isSending = true;
 
-  // UI: switch to "Stop" immediately so user sees it latched
-  document.getElementById('startBtn').classList.add('hidden');
-  document.getElementById('stopBtn').classList.remove('hidden');
+      // UI: switch to "Stop" immediately so user sees it latched
+      document.getElementById('startBtn').classList.add('hidden');
+      document.getElementById('stopBtn').classList.remove('hidden');
 
-  const d = (new URLSearchParams(window.location.search).get('mode') === 'join') ? STAGGER_JOIN_MS : 0;
-  setStatus(d ? `Starting in ${d/1000}s...` : "Starting...");
+      const d = (new URLSearchParams(window.location.search).get('mode') === 'join') ? STAGGER_JOIN_MS : 0;
+      setStatus(d ? `Starting in ${d/1000}s...` : "Starting...");
 
-  // Ensure video has dimensions before first capture
-  const waitForVideoReady = () => new Promise((resolve) => {
-    const readyNow = () => (video.videoWidth && video.videoHeight);
-    if (readyNow()) return resolve();
+      // Ensure video has dimensions before first capture
+      const waitForVideoReady = () => new Promise((resolve) => {
+        const readyNow = () => (video.videoWidth && video.videoHeight);
+        if (readyNow()) return resolve();
 
-    const onReady = () => {
-      video.removeEventListener('loadedmetadata', onReady);
-      video.removeEventListener('canplay', onReady);
-      resolve();
-    };
-    video.addEventListener('loadedmetadata', onReady);
-    video.addEventListener('canplay', onReady);
+        const onReady = () => {
+          video.removeEventListener('loadedmetadata', onReady);
+          video.removeEventListener('canplay', onReady);
+          resolve();
+        };
+        video.addEventListener('loadedmetadata', onReady);
+        video.addEventListener('canplay', onReady);
 
-    // Safety: resolve after 2s even if events don’t fire
-    setTimeout(resolve, 2000);
-  });
+        // Safety: resolve after 2s even if events don’t fire
+        setTimeout(resolve, 2000);
+      });
 
-  sendArmTimeoutId = setTimeout(async () => {
-    sendArmTimeoutId = null;
+      sendArmTimeoutId = setTimeout(async () => {
+        sendArmTimeoutId = null;
 
-    await waitForVideoReady();
-    captureAndSendFrame();
+        await waitForVideoReady();
+        captureAndSendFrame();
 
-    sendIntervalId = setInterval(captureAndSendFrame, SEND_EVERY_MS);
-    setStatus(`Auto-send running (every ${SEND_EVERY_MS/1000}s).`);
-  }, d);
-}
+        sendIntervalId = setInterval(captureAndSendFrame, SEND_EVERY_MS);
+        setStatus(`Auto-send running (every ${SEND_EVERY_MS/1000}s). Sending ${OUT_W}×${OUT_H}.`);
+      }, d);
+    }
 
     function stopSending() {
-  if (sendArmTimeoutId) {
-    clearTimeout(sendArmTimeoutId);
-    sendArmTimeoutId = null;
-  }
+      if (sendArmTimeoutId) {
+        clearTimeout(sendArmTimeoutId);
+        sendArmTimeoutId = null;
+      }
 
-  if (sendIntervalId) {
-    clearInterval(sendIntervalId);
-    sendIntervalId = null;
-  }
+      if (sendIntervalId) {
+        clearInterval(sendIntervalId);
+        sendIntervalId = null;
+      }
 
-  isSending = false;
+      isSending = false;
 
-  document.getElementById('stopBtn').classList.add('hidden');
-  document.getElementById('startBtn').classList.remove('hidden');
-  setStatus("Stopped.");
-}
+      document.getElementById('stopBtn').classList.add('hidden');
+      document.getElementById('startBtn').classList.remove('hidden');
+      setStatus("Stopped.");
+    }
 
     // ---------- Grid UI ----------
     function toggleGrid() {
@@ -1074,23 +1104,23 @@ function startSending() {
     }
 
     function goToLobbyLocal() {
-  currentRoomId = null;
-  stopSending();
+      currentRoomId = null;
+      stopSending();
 
-  // stop camera
-  if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
-  cameraStream = null;
+      // stop camera
+      if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+      cameraStream = null;
 
-  // close drawers
-  document.getElementById('settingsDrawer').classList.remove('active');
-  document.getElementById('diceDrawer').classList.remove('active');
-  document.getElementById('cropPanel').classList.remove('active');
-  document.getElementById('cropOverlay').style.display = 'none';
+      // close drawers
+      document.getElementById('settingsDrawer').classList.remove('active');
+      document.getElementById('diceDrawer').classList.remove('active');
+      document.getElementById('cropPanel').classList.remove('active');
+      document.getElementById('cropOverlay').style.display = 'none';
 
-  showScreen('screenMode');
-  setTopStatus(`ID: ${myPlayerId || "----"}  |  choose host/join`, true);
-  projGridEnabled = false;
-}
+      showScreen('screenMode');
+      setTopStatus(`ID: ${myPlayerId || "----"}  |  choose host/join`, true);
+      projGridEnabled = false;
+    }
 
     // ---------- Socket handlers ----------
     socket.on('errorMsg', alert);
@@ -1177,9 +1207,9 @@ function startSending() {
       document.getElementById('playerList').innerHTML = p.map(u => `<li>👤 <span class="mono">${escapeHtml(u)}</span></li>`).join('');
     });
 
-socket.on('backToLobby', () => {
-  goToLobbyLocal();
-});
+    socket.on('backToLobby', () => {
+      goToLobbyLocal();
+    });
 
     // ---------- Standard game logic ----------
     function getPlayerId() {
@@ -1201,16 +1231,15 @@ socket.on('backToLobby', () => {
     }
 
     function leaveGame() {
-  // keep a copy before goToLobbyLocal clears it
-  const roomId = currentRoomId;
+      // keep a copy before goToLobbyLocal clears it
+      const roomId = currentRoomId;
 
-  // Always return UI immediately (even if socket is flaky)
-  goToLobbyLocal();
+      // Always return UI immediately (even if socket is flaky)
+      goToLobbyLocal();
 
-  // Then inform server so the room/player list stays correct
-  if (roomId) socket.emit('leaveGame', roomId);
-}
-
+      // Then inform server so the room/player list stays correct
+      if (roomId) socket.emit('leaveGame', roomId);
+    }
 
     // ---------- Small safety ----------
     function escapeHtml(str){
