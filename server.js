@@ -1,3 +1,4 @@
+// server.js
 const express = require('express');
 const app = express();
 const http = require('http');
@@ -6,7 +7,7 @@ const { Server } = require("socket.io");
 
 // Increase limit for image data to 100MB to prevent crashes on big photos
 const io = new Server(server, {
-  maxHttpBufferSize: 1e8 
+  maxHttpBufferSize: 1e8
 });
 
 app.use(express.static('public'));
@@ -15,13 +16,14 @@ let games = {};
 
 io.on('connection', (socket) => {
   socket.playerId = null;
-  
+
   // Send the list of games to the new user
   socket.emit('updateGameList', games);
 
   // 1. HOST GAME
   socket.on('hostGame', ({ name, playerId }) => {
     if (!name || !playerId) return;
+
     socket.playerId = playerId;
 
     // Generate unique Room ID
@@ -31,6 +33,7 @@ io.on('connection', (socket) => {
     }
 
     games[roomId] = { id: roomId, name: name, players: [playerId] };
+
     socket.join(roomId);
     socket.emit('joinedRoom', games[roomId]);
     io.emit('updateGameList', games);
@@ -46,7 +49,7 @@ io.on('connection', (socket) => {
 
     // Only add to list if not already there
     if (!games[roomId].players.includes(playerId)) {
-        games[roomId].players.push(playerId);
+      games[roomId].players.push(playerId);
     }
 
     io.to(roomId).emit('playerUpdate', games[roomId].players);
@@ -57,16 +60,17 @@ io.on('connection', (socket) => {
   // 3. JOIN AS PROJECTOR (Silent Mode)
   socket.on('joinAsProjector', ({ roomId, ownerId }) => {
     if (games[roomId]) {
-        socket.join(roomId);
-        console.log(`Projector joined room ${roomId} for owner ${ownerId}`);
+      socket.join(roomId);
+      console.log(`Projector joined room ${roomId} for owner ${ownerId}`);
     }
   });
 
   // 4. LEAVE GAME
   socket.on('leaveGame', (roomId) => {
     if (!games[roomId]) return;
+
     socket.leave(roomId);
-    
+
     // Remove player ID
     games[roomId].players = games[roomId].players.filter(p => p !== socket.playerId);
 
@@ -75,16 +79,19 @@ io.on('connection', (socket) => {
     } else {
       io.to(roomId).emit('playerUpdate', games[roomId].players);
     }
+
     socket.emit('backToLobby');
     io.emit('updateGameList', games);
   });
 
   // 5. IMAGE HANDLING
   socket.on('sendImage', ({ roomId, image }) => {
-    if (!roomId || !image || !games[roomId]) return;
-    io.to(roomId).emit('receiveImage', { 
-        image: image, 
-        senderId: socket.playerId 
+    if (!roomId || !image) return;
+    if (!games[roomId]) return;
+
+    io.to(roomId).emit('receiveImage', {
+      image: image,
+      senderId: socket.playerId
     });
   });
 
@@ -96,31 +103,43 @@ io.on('connection', (socket) => {
 
   // 7. PROJECTOR VIEW MODES (Calibration)
   socket.on('setProjectorViewMode', ({ roomId, ownerId, mode }) => {
+    if (!roomId || !games[roomId]) return;
     io.to(roomId).emit('projectorViewMode', { mode });
   });
 
-  // 8. PROJECTOR GRID
+  // 8. PROJECTOR GRID (Individual Control)
   socket.on('setProjectorGrid', ({ roomId, ownerId, enabled, width, height }) => {
-    io.to(roomId).emit('projectorGrid', { 
-        ownerId: ownerId,
-        enabled, 
-        width: parseInt(width) || 50, 
-        height: parseInt(height) || 50 
+    if (!roomId || !games[roomId]) return;
+    io.to(roomId).emit('projectorGrid', {
+      ownerId: ownerId,
+      enabled,
+      width: parseInt(width) || 50,
+      height: parseInt(height) || 50
+    });
+  });
+
+  // 8b. FIELD ALIGNMENT (NEW)
+  socket.on('setFieldAlign', ({ roomId, ownerId, enabled, x, y, zoom, trapX, trapY }) => {
+    if (!roomId || !games[roomId]) return;
+
+    io.to(roomId).emit('fieldAlign', {
+      ownerId,
+      enabled: !!enabled,
+      x: parseInt(x, 10) || 0,
+      y: parseInt(y, 10) || 0,
+      zoom: parseFloat(zoom) || 1.0,
+      trapX: parseFloat(trapX) || 0,
+      trapY: parseFloat(trapY) || 0
     });
   });
 
   // 9. PROJECTOR BLANKING
   socket.on('setProjectorBlank', ({ roomId, ownerId, blank }) => {
+    if (!roomId || !games[roomId]) return;
     io.to(roomId).emit('projectorBlank', { blank });
   });
 
-  // 10. INCOMING IMAGE ALIGNMENT (X, Y, Z, Rotate)
-  socket.on('setReceiverTransform', ({ roomId, ownerId, transform }) => {
-    // Send alignment data ONLY to this player's projector
-    io.to(roomId).emit('receiverTransform', { ownerId, transform });
-  });
-
-  // 11. DISCONNECT CLEANUP
+  // 10. DISCONNECT CLEANUP
   socket.on('disconnect', () => {
     if (!socket.playerId) return;
     let changed = false;
