@@ -136,7 +136,7 @@ io.on('connection', (socket) => {
   // 9. PROJECTOR BLANKING
   socket.on('setProjectorBlank', ({ roomId, ownerId, blank }) => {
     if (!roomId || !games[roomId]) return;
-    io.to(roomId).emit('projectorBlank', { blank });
+    io.to(roomId).emit('projectorBlank', { ownerId, blank: !!blank });
   });
 
   // 10. DISCONNECT CLEANUP
