@@ -1276,7 +1276,7 @@
     // ---------- Socket handlers ----------
     socket.on('errorMsg', alert);
 
-    socket.on('projectorBlank', ({blank}) => {
+    socket.on('projectorBlank', ({ownerId, blank}) => {
       if(!isProjectorMode) return;
       // Only blank THIS projector tab if the event is for its owner
       if (ownerId !== projectorOwnerId) return;
