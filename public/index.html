@@ -1096,10 +1096,10 @@
       isCapturing = true;
       try {
       // Flash projector white to break feedback loop
-      await flashProjectorWhite(140);
+      await flashProjectorWhite(200);
       
       // Give the projector a tiny moment to actually switch
-      await sleep(60);
+      await sleep(70);
       
       // Now capture & send
       captureAndSendFrameCore();
