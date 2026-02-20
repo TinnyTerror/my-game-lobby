@@ -22,7 +22,6 @@ io.on('connection', (socket) => {
   // 1. HOST GAME
   socket.on('hostGame', ({ name, playerId }) => {
     if (!name || !playerId) return;
-
     socket.playerId = playerId;
 
     // Generate unique Room ID
@@ -32,7 +31,6 @@ io.on('connection', (socket) => {
     }
 
     games[roomId] = { id: roomId, name: name, players: [playerId] };
-
     socket.join(roomId);
     socket.emit('joinedRoom', games[roomId]);
     io.emit('updateGameList', games);
@@ -67,7 +65,6 @@ io.on('connection', (socket) => {
   // 4. LEAVE GAME
   socket.on('leaveGame', (roomId) => {
     if (!games[roomId]) return;
-
     socket.leave(roomId);
     
     // Remove player ID
@@ -78,18 +75,13 @@ io.on('connection', (socket) => {
     } else {
       io.to(roomId).emit('playerUpdate', games[roomId].players);
     }
-
     socket.emit('backToLobby');
     io.emit('updateGameList', games);
   });
 
   // 5. IMAGE HANDLING
   socket.on('sendImage', ({ roomId, image }) => {
-    if (!roomId || !image) return;
-    if (!games[roomId]) return;
-
-    // Broadcast to everyone in the room (Players AND Projectors)
-    // We attach the senderId so projectors know who to ignore
+    if (!roomId || !image || !games[roomId]) return;
     io.to(roomId).emit('receiveImage', { 
         image: image, 
         senderId: socket.playerId 
@@ -107,21 +99,28 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('projectorViewMode', { mode });
   });
 
- // 8. PROJECTOR GRID (Updated for Individual Control)
+  // 8. PROJECTOR GRID
   socket.on('setProjectorGrid', ({ roomId, ownerId, enabled, width, height }) => {
     io.to(roomId).emit('projectorGrid', { 
-        ownerId: ownerId, // <--- KEY FIX: Pass the ID back so we know who sent it
+        ownerId: ownerId,
         enabled, 
         width: parseInt(width) || 50, 
         height: parseInt(height) || 50 
     });
   });
+
   // 9. PROJECTOR BLANKING
   socket.on('setProjectorBlank', ({ roomId, ownerId, blank }) => {
     io.to(roomId).emit('projectorBlank', { blank });
   });
 
-  // 10. DISCONNECT CLEANUP
+  // 10. INCOMING IMAGE ALIGNMENT (X, Y, Z, Rotate)
+  socket.on('setReceiverTransform', ({ roomId, ownerId, transform }) => {
+    // Send alignment data ONLY to this player's projector
+    io.to(roomId).emit('receiverTransform', { ownerId, transform });
+  });
+
+  // 11. DISCONNECT CLEANUP
   socket.on('disconnect', () => {
     if (!socket.playerId) return;
     let changed = false;
