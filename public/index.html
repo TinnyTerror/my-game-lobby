@@ -415,7 +415,7 @@
     #projectorDiceOverlay { position: fixed; bottom: 20px; right: 20px; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 15px; z-index: 10002; display: none; pointer-events: none; border: 2px solid white; }
     #projectorDebug { color: #00ff00; font-family: var(--mono); font-size: 14px; position: absolute; top: 10px; left: 10px; z-index: 10001; background: rgba(0,0,0,0.5); padding: 10px; pointer-events: none; white-space: pre-line; }
     #fullscreenHint { color: rgba(255,255,255,0.5); font-size: 12px; position: absolute; bottom: 10px; width: 100%; text-align: center; pointer-events: none; z-index: 10001; }
-    #projectorBlank { display: none; position: fixed; inset: 0; background: black; z-index: 10000; }
+    #projectorBlank { display: none; position: fixed; inset: 0; background: white; z-index: 10000; }
   </style>
 </head>
 
@@ -1043,7 +1043,25 @@
       }).catch(() => alert("Camera blocked!"));
     }
 
-    function captureAndSendFrame() {
+    let isCapturing = false;
+    
+    function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+    
+    // Flash the owner projector tab white briefly to prevent hall-of-mirrors
+    async function flashProjectorWhite(flashMs = 180) {
+      if (!currentRoomId || !myPlayerId) return;
+    
+    // blank ON
+    socket.emit('setProjectorBlank', { roomId: currentRoomId, ownerId: myPlayerId, blank: true });
+    
+    // keep it on a moment
+    await sleep(flashMs);
+    
+    // blank OFF
+    socket.emit('setProjectorBlank', { roomId: currentRoomId, ownerId: myPlayerId, blank: false });
+}
+
+    function captureAndSendFrameCore() {
       if (!cameraStream || !currentRoomId) return;
 
       const canvas = document.getElementById('canvas');
@@ -1070,6 +1088,25 @@
       socket.emit('sendImage', { roomId: currentRoomId, image: canvas.toDataURL('image/jpeg', 0.75) });
       setStatus(`Sent ${OUT_W}×${OUT_H} at ${new Date().toLocaleTimeString()}`);
     }
+    
+    async function captureAndSendFrame() {
+      if (isCapturing) return;           // prevents overlap if a capture runs long
+      if (!cameraStream || !currentRoomId) return;
+      
+      isCapturing = true;
+      try {
+      // Flash projector white to break feedback loop
+      await flashProjectorWhite(140);
+      
+      // Give the projector a tiny moment to actually switch
+      await sleep(60);
+      
+      // Now capture & send
+      captureAndSendFrameCore();
+    } finally {
+      isCapturing = false;
+    }
+}
 
     function startSending() {
       if (!cameraStream || !currentRoomId) return alert("Setup first!");
@@ -1240,7 +1277,10 @@
     socket.on('errorMsg', alert);
 
     socket.on('projectorBlank', ({blank}) => {
-      if(isProjectorMode) document.getElementById('projectorBlank').style.display = blank ? 'block' : 'none';
+      if(!isProjectorMode) return;
+      // Only blank THIS projector tab if the event is for its owner
+      if (ownerId !== projectorOwnerId) return;
+      document.getElementById('projectorBlank').style.display = blank ? 'block' : 'none';
     });
 
     socket.on('projectorViewMode', ({mode}) => {
