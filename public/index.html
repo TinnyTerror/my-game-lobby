@@ -4,50 +4,270 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Table_Link</title>
   <style>
-    /* ============================================================
-       TABLE_LINK UI — Retro 90s tabletop vibe (iframe responsive)
-       ============================================================ */
-    :root{ --bg0:#05070c; --bg1:#0b1020; --panel:#121a2f; --panel2:#0f162a; --ink:#e6ecff; --muted:#9fb1ff; --acid:#00ffd5; --hot:#ff3c8f; --warn:#ffb020; --ok:#2ee59d; --bad:#ff4d4f; --line:rgba(255,255,255,.14); --shadow: 0 14px 34px rgba(0,0,0,.55); --radius: 16px; --radius2: 12px; --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; --sans: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
-    html, body{ height:100%; width:100%; margin:0; padding:0; background: transparent !important; color: var(--ink); overflow:hidden; font-family: var(--sans); }
+    :root{
+      --panel2:#0f162a; --ink:#e6ecff; --muted:#9fb1ff;
+      --acid:#00ffd5; --hot:#ff3c8f; --warn:#ffb020; --ok:#2ee59d; --bad:#ff4d4f;
+      --shadow: 0 14px 34px rgba(0,0,0,.55);
+      --radius: 16px; --radius2: 12px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    html, body{
+      height:100%; width:100%; margin:0; padding:0;
+      background: transparent !important;
+      color: var(--ink);
+      overflow:hidden;
+      font-family: var(--sans);
+    }
     body:before, body:after{ content:none !important; display:none !important; }
-    .hidden { display:none !important; } .mono { font-family: var(--mono); } .dim { opacity:.8; } .small { font-size:12px; }
-    #app{ height:100%; width:100%; display:flex; align-items:flex-start; justify-content:center; padding:15px; box-sizing:border-box; }
-    .frame{ width: 100%; height: 100%; display:flex; flex-direction:column; border-radius: var(--radius); background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)), radial-gradient(900px 500px at 15% 0%, rgba(255,60,143,.18), rgba(0,0,0,0)), radial-gradient(900px 500px at 85% 0%, rgba(0,255,213,.12), rgba(0,0,0,0)), var(--panel2); border: 1px solid rgba(255,255,255,.12); box-shadow: var(--shadow); overflow:hidden; }
-    .topbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.10); background: linear-gradient(180deg, rgba(0,0,0,.30), rgba(0,0,0,.05)); }
-    .brand{ display:flex; align-items:baseline; gap:10px; font-weight:800; letter-spacing:.6px; text-transform:uppercase; }
-    .brand .logo{ font-size:14px; padding:6px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.14); background: rgba(0,0,0,.28); box-shadow: inset 0 0 0 1px rgba(0,255,213,.08); }
-    .statuschip{ display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.14); background: rgba(0,0,0,.22); font-size:12px; color: var(--muted); max-width: 55%; white-space: nowrap; overflow:hidden; text-overflow: ellipsis; }
-    .dot{ width:8px;height:8px;border-radius:50%; background: rgba(255,255,255,.20); box-shadow: 0 0 10px rgba(0,255,213,.0); } .dot.on{ background: var(--ok); box-shadow: 0 0 12px rgba(46,229,157,.55); }
-    .main{ flex:1; display:flex; overflow:hidden; min-height:0; } .panel{ flex:1; padding:14px; overflow:auto; box-sizing:border-box; }
-    .card{ border-radius: var(--radius); border:1px solid rgba(255,255,255,.12); background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)), rgba(0,0,0,.18); box-shadow: inset 0 0 0 1px rgba(0,255,213,.05); padding:14px; }
-    .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; } @media (max-width: 860px){ .grid2{ grid-template-columns: 1fr; } }
-    h1,h2,h3{ margin:0 0 10px 0; font-weight:800; letter-spacing:.2px; } h2{ font-size:18px; } h3{ font-size:14px; color: var(--muted); text-transform: uppercase; letter-spacing:.7px; }
+
+    .hidden { display:none !important; }
+    .mono { font-family: var(--mono); }
+    .dim { opacity:.8; }
+    .small { font-size:12px; }
+
+    #app{
+      height:100%; width:100%;
+      display:flex; align-items:flex-start; justify-content:center;
+      padding:15px; box-sizing:border-box;
+    }
+
+    .frame{
+      width:100%; height:100%;
+      display:flex; flex-direction:column;
+      border-radius: var(--radius);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)),
+        radial-gradient(900px 500px at 15% 0%, rgba(255,60,143,.18), rgba(0,0,0,0)),
+        radial-gradient(900px 500px at 85% 0%, rgba(0,255,213,.12), rgba(0,0,0,0)),
+        var(--panel2);
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+
+    .topbar{
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      padding:12px 14px;
+      border-bottom:1px solid rgba(255,255,255,.10);
+      background: linear-gradient(180deg, rgba(0,0,0,.30), rgba(0,0,0,.05));
+    }
+    .brand{
+      display:flex; align-items:baseline; gap:10px;
+      font-weight:800; letter-spacing:.6px; text-transform:uppercase;
+    }
+    .brand .logo{
+      font-size:14px; padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.28);
+      box-shadow: inset 0 0 0 1px rgba(0,255,213,.08);
+    }
+    .statuschip{
+      display:flex; align-items:center; gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.22);
+      font-size:12px;
+      color: var(--muted);
+      max-width:55%;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .dot{
+      width:8px; height:8px; border-radius:50%;
+      background: rgba(255,255,255,.20);
+      box-shadow: 0 0 10px rgba(0,255,213,.0);
+    }
+    .dot.on{ background: var(--ok); box-shadow: 0 0 12px rgba(46,229,157,.55); }
+
+    .main{ flex:1; display:flex; overflow:hidden; min-height:0; }
+    .panel{ flex:1; padding:14px; overflow:auto; box-sizing:border-box; }
+
+    .card{
+      border-radius: var(--radius);
+      border:1px solid rgba(255,255,255,.12);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)),
+        rgba(0,0,0,.18);
+      box-shadow: inset 0 0 0 1px rgba(0,255,213,.05);
+      padding:14px;
+    }
+
+    .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+    @media (max-width: 860px){ .grid2{ grid-template-columns: 1fr; } }
+
+    h2{ margin:0 0 10px 0; font-weight:800; font-size:18px; }
+    h3{ margin:0 0 10px 0; font-weight:800; font-size:14px; color: var(--muted); text-transform:uppercase; letter-spacing:.7px; }
+
     .row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin:10px 0; font-size:13px; }
-    .field{ display:flex; flex-direction:column; gap:6px; margin:10px 0; } label{ font-size:12px; color: var(--muted); text-transform: uppercase; letter-spacing:.6px; }
-    input, select{ width:100%; box-sizing:border-box; padding:10px 12px; border-radius: 12px; border:1px solid rgba(255,255,255,.14); background: rgba(0,0,0,.25); color: var(--ink); outline:none; font-size:14px; } input::placeholder{ color: rgba(230,236,255,.45); }
+
+    .field{ display:flex; flex-direction:column; gap:6px; margin:10px 0; }
+    label{ font-size:12px; color: var(--muted); text-transform: uppercase; letter-spacing:.6px; }
+
+    input, select{
+      width:100%;
+      box-sizing:border-box;
+      padding:10px 12px;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.25);
+      color: var(--ink);
+      outline:none;
+      font-size:14px;
+    }
+    input::placeholder{ color: rgba(230,236,255,.45); }
+
     .btnrow{ display:flex; gap:10px; flex-wrap:wrap; }
-    button, a.btn{ appearance:none; border:none; cursor:pointer; user-select:none; border-radius: 12px; padding:11px 12px; font-size:14px; font-weight:800; letter-spacing:.2px; color: var(--ink); background: rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14); box-shadow: 0 8px 18px rgba(0,0,0,.35); transition: transform .06s ease, filter .12s ease; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; gap:8px; min-width: 160px; flex: 1; }
-    button:active, a.btn:active{ transform: translateY(1px); } button:hover, a.btn:hover{ filter: brightness(1.08); }
+
+    button, a.btn{
+      appearance:none; border:none; cursor:pointer; user-select:none;
+      border-radius: 12px;
+      padding:11px 12px;
+      font-size:14px;
+      font-weight:800;
+      letter-spacing:.2px;
+      color: var(--ink);
+      background: rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.14);
+      box-shadow: 0 8px 18px rgba(0,0,0,.35);
+      transition: transform .06s ease, filter .12s ease;
+      text-decoration:none;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      min-width: 160px;
+      flex: 1;
+    }
+    button:active, a.btn:active{ transform: translateY(1px); }
+    button:hover, a.btn:hover{ filter: brightness(1.08); }
+
     .primary{ background: linear-gradient(180deg, rgba(0,255,213,.24), rgba(0,255,213,.08)); border-color: rgba(0,255,213,.35); box-shadow: 0 0 0 1px rgba(0,255,213,.12) inset, 0 10px 22px rgba(0,0,0,.40); }
     .hot{ background: linear-gradient(180deg, rgba(255,60,143,.26), rgba(255,60,143,.08)); border-color: rgba(255,60,143,.40); }
     .warn{ background: linear-gradient(180deg, rgba(255,176,32,.26), rgba(255,176,32,.08)); border-color: rgba(255,176,32,.42); }
     .ok{ background: linear-gradient(180deg, rgba(46,229,157,.24), rgba(46,229,157,.08)); border-color: rgba(46,229,157,.38); }
     .bad{ background: linear-gradient(180deg, rgba(255,77,79,.26), rgba(255,77,79,.08)); border-color: rgba(255,77,79,.42); }
-    .toolbar{ display:flex; gap:10px; flex-wrap:wrap; } .toolbar button, .toolbar a.btn{ min-width: 170px; flex: 1; }
-    .split{ display:grid; grid-template-columns: 1.2fr .8fr; gap:12px; align-items:start; } @media (max-width: 860px){ .split{ grid-template-columns: 1fr; } }
-    ul{ list-style:none; padding:0; margin:0; } li{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 10px; border-radius: 12px; border:1px solid rgba(255,255,255,.10); background: rgba(0,0,0,.18); margin-bottom:8px; } li b{ font-size:14px; }
-    #videoContainer{ position:relative; width:100%; border-radius: var(--radius2); overflow:hidden; background:#000; border:1px solid rgba(255,255,255,.12); box-shadow: inset 0 0 0 1px rgba(0,255,213,.08); min-height: 180px; }
-    #videoPreview{ width:100%; display:block; } #cropOverlay{ position:absolute; inset:0; pointer-events:none; display:none; border:2px solid rgba(255,255,255,.4); }
-    .drawer{ margin-top:12px; border-radius: var(--radius); border:1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.18); padding:12px; display:none; } .drawer.active{ display:block; }
-    .hint{ font-size:12px; color: rgba(230,236,255,.70); background: rgba(0,255,213,.08); border:1px solid rgba(0,255,213,.18); padding:10px 10px; border-radius: 12px; line-height:1.35; }
-    .dice-btn-row{ display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; } .dice-btn-row button{ min-width: 120px; }
-    .die-box{ display:flex; align-items:center; justify-content:center; font-weight:900; border-radius: 10px; border:2px solid rgba(255,255,255,.35); box-shadow: 0 8px 18px rgba(0,0,0,.35); }
+
+    .toolbar{ display:flex; gap:10px; flex-wrap:wrap; }
+    .toolbar button, .toolbar a.btn{ min-width: 170px; flex: 1; }
+
+    .split{ display:grid; grid-template-columns: 1.2fr .8fr; gap:12px; align-items:start; }
+    @media (max-width: 860px){ .split{ grid-template-columns: 1fr; } }
+
+    ul{ list-style:none; padding:0; margin:0; }
+    li{
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      padding:10px 10px;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.18);
+      margin-bottom:8px;
+    }
+    li b{ font-size:14px; }
+
+    #videoContainer{
+      position:relative;
+      width:100%;
+      border-radius: var(--radius2);
+      overflow:hidden;
+      background:#000;
+      border:1px solid rgba(255,255,255,.12);
+      box-shadow: inset 0 0 0 1px rgba(0,255,213,.08);
+      min-height: 180px;
+    }
+    #videoPreview{ width:100%; display:block; }
+    #cropOverlay{
+      position:absolute; inset:0;
+      pointer-events:none;
+      display:none;
+      border:2px solid rgba(255,255,255,.4);
+    }
+
+    .drawer{
+      margin-top:12px;
+      border-radius: var(--radius);
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.18);
+      padding:12px;
+      display:none;
+    }
+    .drawer.active{ display:block; }
+
+    .hint{
+      font-size:12px;
+      color: rgba(230,236,255,.70);
+      background: rgba(0,255,213,.08);
+      border:1px solid rgba(0,255,213,.18);
+      padding:10px 10px;
+      border-radius: 12px;
+      line-height:1.35;
+    }
+
+    /* Dice */
+    .dice-btn-row{ display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+    .dice-btn-row button{ min-width: 120px; }
+    .die-box{
+      display:flex; align-items:center; justify-content:center;
+      font-weight:900;
+      border-radius: 10px;
+      border:2px solid rgba(255,255,255,.35);
+      box-shadow: 0 8px 18px rgba(0,0,0,.35);
+    }
     .dice-area{ display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; min-height: 44px; }
-    .type-D3 { background: #f0ad4e; color: #000; } .type-D6 { background: #333; } .type-D10 { background: #0275d8; } .type-D20 { background: #d9534f; }
-    .size-S { width: 34px; height: 34px; font-size: 14px; } .size-M { width: 54px; height: 54px; font-size: 22px; } .size-L { width: 84px; height: 84px; font-size: 36px; }
-    .toggleBtn{ width:auto; padding:8px 10px; border-radius:999px; background: rgba(0,255,213,.22); border:1px solid rgba(0,255,213,.35); color: var(--ink); font-weight:900; min-width: 72px; flex: 0 0 auto; } .toggleBtn.off{ background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.14); color: rgba(230,236,255,.75); }
-    #sendStatus{ display:none; margin-top:10px; font-size:12px; color: var(--muted); white-space: pre-line; border-left: 3px solid rgba(0,255,213,.5); padding-left:10px; }
-    
+    .type-D3 { background: #f0ad4e; color: #000; }
+    .type-D6 { background: #333; }
+    .type-D10 { background: #0275d8; }
+    .type-D20 { background: #d9534f; }
+    .size-S { width: 34px; height: 34px; font-size: 14px; }
+    .size-M { width: 54px; height: 54px; font-size: 22px; }
+    .size-L { width: 84px; height: 84px; font-size: 36px; }
+
+    /* Toggles */
+    .toggleBtn{
+      width:auto;
+      padding:8px 10px;
+      border-radius:999px;
+      background: rgba(0,255,213,.22);
+      border:1px solid rgba(0,255,213,.35);
+      color: var(--ink);
+      font-weight:900;
+      min-width: 72px;
+      flex: 0 0 auto;
+    }
+    .toggleBtn.off{
+      background: rgba(255,255,255,.08);
+      border-color: rgba(255,255,255,.14);
+      color: rgba(230,236,255,.75);
+    }
+
+    #sendStatus{
+      display:none;
+      margin-top:10px;
+      font-size:12px;
+      color: var(--muted);
+      white-space: pre-line;
+      border-left: 3px solid rgba(0,255,213,.5);
+      padding-left:10px;
+    }
+
+    /* Stepper numeric fields */
+    .stepper{
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+    .stepper button{
+      min-width: 56px;
+      flex: 0 0 auto;
+      padding: 10px 0;
+    }
+    .stepper input{
+      text-align:center;
+      font-weight:900;
+    }
+
     /* PROJECTOR MODE */
     #projectorView { display:none; position: fixed; inset: 0; width: 100%; height: 100%; background: black; z-index: 9999; align-items: center; justify-content: center; }
     #projectorContent { position: relative; width: 1500px; height: 1100px; display: flex; justify-content: center; align-items: center; perspective: 1200px; }
@@ -56,33 +276,37 @@
     #projectorDiceOverlay { position: fixed; bottom: 20px; right: 20px; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 15px; z-index: 10002; display: none; pointer-events: none; border: 2px solid white; }
     #projectorDebug { color: #00ff00; font-family: var(--mono); font-size: 14px; position: absolute; top: 10px; left: 10px; z-index: 10001; background: rgba(0,0,0,0.5); padding: 10px; pointer-events: none; white-space: pre-line; }
     #fullscreenHint { color: rgba(255,255,255,0.5); font-size: 12px; position: absolute; bottom: 10px; width: 100%; text-align: center; pointer-events: none; z-index: 10001; }
-    
-    /* BLACK BACKGROUND TO FIX EXPOSURE */
-    #projectorBlank { display: none; position: fixed; inset: 0; background: black; z-index: 10000; }
+
+    /* WHITE FLASH */
+    #projectorBlank { display: none; position: fixed; inset: 0; background: white; z-index: 10000; }
   </style>
 </head>
+
 <body>
+  <!-- PROJECTOR MODE -->
   <div id="projectorView" ondblclick="toggleFullScreen()">
     <div id="projectorDebug">Initializing...</div>
     <div id="projectorContent">
       <img id="projectorImage" src="">
       <canvas id="projectorGridCanvas"></canvas>
     </div>
+
     <div id="projectorDiceOverlay">
       <div style="color:white; font-size:12px; margin-bottom:5px;">INCOMING ROLL:</div>
       <div id="projDiceContainer" class="dice-area" style="margin-top:0;"></div>
     </div>
+
     <div id="fullscreenHint">(Double-click screen for true fullscreen)</div>
   </div>
   <div id="projectorBlank"></div>
 
+  <!-- MAIN APP -->
   <div id="app">
     <div class="frame" id="mainInterface">
-
       <div class="topbar">
         <div class="brand">
           <div class="logo mono">TL</div>
-          <div class="title">Table_Link</div>
+          <div>Table_Link</div>
         </div>
         <div class="statuschip" title="Status">
           <span class="dot" id="statusDot"></span>
@@ -93,6 +317,7 @@
       <div class="main">
         <div class="panel">
 
+          <!-- SCREEN 1: START -->
           <div id="screenStart" class="card">
             <h2>Enter the Hub</h2>
             <div class="field">
@@ -105,29 +330,39 @@
             </div>
           </div>
 
+          <!-- SCREEN 2: MODE -->
           <div id="screenMode" class="card hidden">
             <h2>Choose Your Path</h2>
+
             <div class="grid2" style="margin-top:10px;">
+              <!-- Host -->
               <div class="card" style="padding:12px;">
-                <h3>Host</h3>
+                <h3>Host a Match</h3>
                 <div class="field">
-                  <label>Room ID (Room Name)</label>
+                  <label>Room Name</label>
                   <input id="gameName" type="text" placeholder="e.g., Friday Night Skirmish" />
+                </div>
+                <div class="field">
+                  <label>Password (optional)</label>
+                  <input id="gamePass" type="password" placeholder="Leave blank for no password" />
                 </div>
                 <button class="primary" onclick="hostGame()">🜁 Host</button>
               </div>
 
+              <!-- Join -->
               <div class="card" style="padding:12px;">
-                <h3>Join</h3>
+                <h3>Join a Match</h3>
                 <div class="small dim" style="margin-bottom:10px;">Available rooms:</div>
                 <ul id="gameList"><li>Searching...</li></ul>
               </div>
             </div>
+
             <div class="btnrow" style="margin-top:12px;">
               <button onclick="uiBackToStart()">← Back</button>
             </div>
           </div>
 
+          <!-- SCREEN 3: ROOM -->
           <div id="screenRoom" class="card hidden">
             <div class="row" style="margin-top:0;">
               <div>
@@ -145,6 +380,7 @@
             </div>
 
             <div class="split" style="margin-top:12px;">
+              <!-- Left: Camera -->
               <div class="card" style="padding:12px;">
                 <h3>Camera Preview</h3>
 
@@ -154,7 +390,7 @@
                 </div>
 
                 <div class="btnrow" style="margin-top:10px;">
-                  <button id="startBtn" class="primary hidden" onclick="requestGlobalStart()">▶ Start Auto-Send (20s)</button>
+                  <button id="startBtn" class="primary hidden" onclick="requestGlobalStart()">▶ Start Sending (20s)</button>
                   <button id="stopBtn" class="bad hidden" onclick="requestGlobalStop()">■ Stop Sending</button>
                 </div>
 
@@ -162,50 +398,199 @@
                 <canvas id="canvas" style="display:none;"></canvas>
               </div>
 
+              <!-- Right: Players -->
               <div class="card" style="padding:12px;">
                 <h3>Players</h3>
                 <ul id="playerList"></ul>
+
+                <div class="hint" style="margin-top:10px;">
+                  <div class="mono small" id="readyText">Camera Ready: (waiting)</div>
+                </div>
               </div>
             </div>
 
+            <!-- SETTINGS DRAWER -->
             <div id="settingsDrawer" class="drawer">
-              <h3>Settings / Calibration</h3>
-              <div class="row"><div><div style="font-weight:800;">Calibration Mode</div><div class="small dim">Projector shows your feed + calibration overlay</div></div><button id="calibBtn" class="toggleBtn off" onclick="toggleCalibrationMode()">OFF</button></div>
-              <div class="row"><div><div style="font-weight:800;">Grid Overlay</div><div class="small dim">22 rows × 30 cols, scaled by pixel size</div></div><button id="gridToggleBtn" class="toggleBtn off" onclick="toggleGrid()">OFF</button></div>
-              <div class="grid2"><div class="field"><label>Square Width (px)</label><input id="gridWidthInput" type="number" min="10" max="400" value="50" oninput="onGridInput()" /></div><div class="field"><label>Square Height (px)</label><input id="gridHeightInput" type="number" min="10" max="400" value="50" oninput="onGridInput()" /></div></div>
-              <div class="hint" style="margin-top:10px;">Adjust Width/Height until one projected square measures <b>1×1 inch</b> on the table.</div>
+              <h3>Settings</h3>
 
-              <hr style="border:none; border-top:1px solid rgba(255,255,255,.10); margin:12px 0;">
-              <div class="row"><div><div style="font-weight:800;">Field Alignment</div><div class="small dim">Adjust opponent image (pan / zoom / spin / trapezoid)</div></div><button id="alignBtn" class="toggleBtn off" onclick="toggleFieldAlignment()">OFF</button></div>
-              <div id="alignPanel" class="drawer" style="margin-top:10px;">
-                <h3>Alignment Controls</h3>
-                <div class="grid2"><div class="field"><label>Left / Right (px)</label><input id="alignX" type="range" min="-800" max="800" value="0" step="1" oninput="onAlignInput()"></div><div class="field"><label>Up / Down (px)</label><input id="alignY" type="range" min="-800" max="800" value="0" step="1" oninput="onAlignInput()"></div></div>
-                <div class="grid2"><div class="field"><label>Zoom</label><input id="alignZoom" type="range" min="0.5" max="2.0" value="1.0" step="0.01" oninput="onAlignInput()"></div><div class="field"><label>Rotate / Spin (Degrees)</label><input id="alignR" type="range" min="-180" max="180" value="0" step="1" oninput="onAlignInput()"></div></div>
-                <div class="grid2"><div class="field"><label>Trapezoid (Horizontal)</label><input id="alignTrapX" type="range" min="-40" max="40" value="0" step="0.1" oninput="onAlignInput()"></div><div class="field"><label>Trapezoid (Vertical)</label><input id="alignTrapY" type="range" min="-40" max="40" value="0" step="0.1" oninput="onAlignInput()"></div></div>
-                <div class="btnrow" style="margin-top:10px;"><button class="warn" onclick="resetFieldAlignment()">↺ Reset Alignment</button></div>
-                <div class="small dim">These affect the opponent image without moving the grid.</div>
+              <div class="btnrow">
+                <button class="warn" onclick="openSettingsPanel('grid')">Grid</button>
+                <button class="warn" onclick="openSettingsPanel('crop')">Camera Crop</button>
+                <button class="warn" onclick="openSettingsPanel('align')">Field Alignment</button>
               </div>
 
-              <hr style="border:none; border-top:1px solid rgba(255,255,255,.10); margin:12px 0;">
-              <div class="row"><div><div style="font-weight:800;">Crop Camera</div><div class="small dim">Cut out background before sending</div></div><button class="warn" style="min-width:140px; flex:0 0 auto;" onclick="toggleCropPanel()">✂ Crop</button></div>
-              <div id="cropPanel" class="drawer" style="margin-top:10px;">
-                <h3>Crop Settings (%)</h3>
+              <!-- GRID PANEL -->
+              <div id="panelGrid" class="drawer" style="margin-top:10px;">
+                <h3>Grid</h3>
+
+                <div class="row">
+                  <div>
+                    <div style="font-weight:800;">Grid Overlay</div>
+                    <div class="small dim">Drawn on the projector</div>
+                  </div>
+                  <button id="gridToggleBtn" class="toggleBtn off" onclick="toggleGrid()">OFF</button>
+                </div>
+
+                <div class="grid2">
+                  <div class="field">
+                    <label>Columns</label>
+                    <div class="stepper">
+                      <button onclick="stepNumber('gridCols', -1)">◀</button>
+                      <input id="gridCols" type="number" value="30" min="1" max="200" oninput="onGridSettingsInput()">
+                      <button onclick="stepNumber('gridCols', 1)">▶</button>
+                    </div>
+                  </div>
+
+                  <div class="field">
+                    <label>Rows</label>
+                    <div class="stepper">
+                      <button onclick="stepNumber('gridRows', -1)">◀</button>
+                      <input id="gridRows" type="number" value="22" min="1" max="200" oninput="onGridSettingsInput()">
+                      <button onclick="stepNumber('gridRows', 1)">▶</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid2">
+                  <div class="field">
+                    <label>Cell Width (px)</label>
+                    <div class="stepper">
+                      <button onclick="stepNumber('gridWidthInput', -1)">◀</button>
+                      <input id="gridWidthInput" type="number" value="50" min="1" max="800" oninput="onGridSettingsInput()">
+                      <button onclick="stepNumber('gridWidthInput', 1)">▶</button>
+                    </div>
+                  </div>
+
+                  <div class="field">
+                    <label>Cell Height (px)</label>
+                    <div class="stepper">
+                      <button onclick="stepNumber('gridHeightInput', -1)">◀</button>
+                      <input id="gridHeightInput" type="number" value="50" min="1" max="800" oninput="onGridSettingsInput()">
+                      <button onclick="stepNumber('gridHeightInput', 1)">▶</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="hint">
+                  Rows/Cols change the number of grid lines. Cell width/height change spacing.
+                </div>
+              </div>
+
+              <!-- CROP PANEL -->
+              <div id="panelCrop" class="drawer" style="margin-top:10px;">
+                <h3>Camera Crop (Outgoing)</h3>
+
                 <div class="field"><label>Top</label><input type="range" id="cropTop" min="0" max="45" value="0" oninput="updateCrop()"></div>
                 <div class="field"><label>Bottom</label><input type="range" id="cropBottom" min="0" max="45" value="0" oninput="updateCrop()"></div>
                 <div class="field"><label>Left</label><input type="range" id="cropLeft" min="0" max="45" value="0" oninput="updateCrop()"></div>
                 <div class="field"><label>Right</label><input type="range" id="cropRight" min="0" max="45" value="0" oninput="updateCrop()"></div>
-                <div class="small dim">Only the clear area will be sent.</div>
+
+                <div class="hint">Only the clear area will be sent to the other player.</div>
+              </div>
+
+              <!-- ALIGN PANEL -->
+              <div id="panelAlign" class="drawer" style="margin-top:10px;">
+                <h3>Field Alignment (Received)</h3>
+
+                <div class="grid2">
+                  <div class="field">
+                    <label>Left/Right (px)</label>
+                    <div class="stepper">
+                      <button onclick="stepNumber('alignX', -5)">◀</button>
+                      <input id="alignX" type="number" value="0" min="-2000" max="2000" oninput="onAlignSettingsInput()">
+                      <button onclick="stepNumber('alignX', 5)">▶</button>
+                    </div>
+                  </div>
+
+                  <div class="field">
+                    <label>Up/Down (px)</label>
+                    <div class="stepper">
+                      <button onclick="stepNumber('alignY', -5)">◀</button>
+                      <input id="alignY" type="number" value="0" min="-2000" max="2000" oninput="onAlignSettingsInput()">
+                      <button onclick="stepNumber('alignY', 5)">▶</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid2">
+                  <div class="field">
+                    <label>Zoom</label>
+                    <div class="stepper">
+                      <button onclick="stepFloat('alignZoom', -0.01)">◀</button>
+                      <input id="alignZoom" type="number" value="1.00" step="0.01" min="0.10" max="5.00" oninput="onAlignSettingsInput()">
+                      <button onclick="stepFloat('alignZoom', 0.01)">▶</button>
+                    </div>
+                  </div>
+
+                  <div class="field">
+                    <label>Rotation (deg)</label>
+                    <div class="stepper">
+                      <button onclick="stepNumber('alignR', -1)">◀</button>
+                      <input id="alignR" type="number" value="0" min="-180" max="180" oninput="onAlignSettingsInput()">
+                      <button onclick="stepNumber('alignR', 1)">▶</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid2">
+                  <div class="field">
+                    <label>Trapezoid Horizontal</label>
+                    <div class="stepper">
+                      <button onclick="stepFloat('alignTrapX', -0.1)">◀</button>
+                      <input id="alignTrapX" type="number" value="0.0" step="0.1" min="-60" max="60" oninput="onAlignSettingsInput()">
+                      <button onclick="stepFloat('alignTrapX', 0.1)">▶</button>
+                    </div>
+                  </div>
+
+                  <div class="field">
+                    <label>Trapezoid Vertical</label>
+                    <div class="stepper">
+                      <button onclick="stepFloat('alignTrapY', -0.1)">◀</button>
+                      <input id="alignTrapY" type="number" value="0.0" step="0.1" min="-60" max="60" oninput="onAlignSettingsInput()">
+                      <button onclick="stepFloat('alignTrapY', 0.1)">▶</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="btnrow">
+                  <button class="warn" onclick="resetAlignment()">↺ Reset Alignment</button>
+                </div>
+
+                <div class="hint">These affect the opponent image only. Grid stays anchored.</div>
               </div>
             </div>
 
+            <!-- DICE DRAWER -->
             <div id="diceDrawer" class="drawer">
               <h3>Dice Tray</h3>
-              <div class="grid2"><div class="field"><label>Quantity</label><input type="number" id="diceQty" value="1" min="1" max="20"></div><div class="field"><label>Display Size</label><select id="diceSize"><option value="S">Small</option><option value="M" selected>Medium</option><option value="L">Large</option></select></div></div>
-              <div class="dice-btn-row"><button class="warn" onclick="rollDice(3, 'D3')">D3</button><button onclick="rollDice(6, 'D6')">D6</button><button class="primary" onclick="rollDice(10, 'D10')">D10</button><button class="hot" onclick="rollDice(20, 'D20')">D20</button></div>
+
+              <div class="grid2">
+                <div class="field">
+                  <label>Quantity</label>
+                  <input type="number" id="diceQty" value="1" min="1" max="20">
+                </div>
+                <div class="field">
+                  <label>Display Size</label>
+                  <select id="diceSize">
+                    <option value="S">Small</option>
+                    <option value="M" selected>Medium</option>
+                    <option value="L">Large</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="dice-btn-row">
+                <button class="warn" onclick="rollDice(3, 'D3')">D3</button>
+                <button onclick="rollDice(6, 'D6')">D6</button>
+                <button class="primary" onclick="rollDice(10, 'D10')">D10</button>
+                <button class="hot" onclick="rollDice(20, 'D20')">D20</button>
+              </div>
+
               <div id="localDiceResults" class="dice-area"></div>
             </div>
 
-          </div>
+          </div><!-- /screenRoom -->
+
         </div>
       </div>
     </div>
@@ -214,140 +599,360 @@
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
+
+    // Session
     let currentRoomId = null;
+    let myPlayerId = null;
+    let amIHost = false;
+
+    // Camera
     let cameraStream = null;
+    let isCapturing = false;
+    let isSending = false;
     let sendIntervalId = null;
     let sendArmTimeoutId = null;
-    let isSending = false;
-    let myPlayerId = null;
-    let amIHost = false; 
 
-    let isProjectorMode = false;
-    let projectorOwnerId = null;
-    let projectorRoomId = null;
-
-    let calibrationMode = false;
-    let projectorViewMode = 'normal';
-
+    // Timing
     const SEND_EVERY_MS = 20000;
     const STAGGER_JOIN_MS = 10000;
 
+    // Output frames
     const OUT_W = 1920;
     const OUT_H = 1080;
 
-    let gridEnabled = false; let gridW = 50; let gridH = 50;
-    let projGridEnabled = false; let projGridW = 50; let projGridH = 50;
+    // Crop (outgoing)
+    let crop = { t:0, b:0, l:0, r:0 };
 
+    // Grid settings (your projector)
+    let gridEnabled = false;
+    let gridCols = 30;
+    let gridRows = 22;
+    let gridW = 50;
+    let gridH = 50;
+
+    // Projector mode
+    let isProjectorMode = false;
+    let projectorRoomId = null;
+    let projectorOwnerId = null;
+
+    // Projector grid (this projector's settings)
+    let projGridEnabled = false;
+    let projGridCols = 30;
+    let projGridRows = 22;
+    let projGridW = 50;
+    let projGridH = 50;
+
+    // Field Alignment (received image)
     let alignEnabled = false;
-    let align = { x: 0, y: 0, zoom: 1.0, trapX: 0, trapY: 0, r: 0 };
+    let align = { x:0, y:0, zoom:1.0, r:0, trapX:0, trapY:0 };
+
+    // Projector alignment (this projector's settings)
     let projAlignEnabled = false;
-    let projAlign = { x: 0, y: 0, zoom: 1.0, trapX: 0, trapY: 0, r: 0 };
+    let projAlign = { x:0, y:0, zoom:1.0, r:0, trapX:0, trapY:0 };
 
-    let crop = { t: 0, b: 0, l: 0, r: 0 };
-    const GRID_COLS = 30; const GRID_ROWS = 22;
+    // ---- UI helpers ----
+    function setTopStatus(msg, on=false){
+      const t = document.getElementById('statusText');
+      const d = document.getElementById('statusDot');
+      if (t) t.textContent = msg;
+      if (d) d.classList.toggle('on', !!on);
+    }
+    function showScreen(which){
+      ['screenStart','screenMode','screenRoom'].forEach(id => document.getElementById(id).classList.add('hidden'));
+      document.getElementById(which).classList.remove('hidden');
+    }
+    function setStatus(msg){
+      const el = document.getElementById('sendStatus');
+      el.style.display = msg ? 'block' : 'none';
+      el.innerText = msg || '';
+    }
 
-    // ---------- UI helpers ----------
-    function setTopStatus(msg, on=false){ const t = document.getElementById('statusText'); const d = document.getElementById('statusDot'); if(t) t.textContent = msg; if(d) d.classList.toggle('on', !!on); }
-    function showScreen(which){ ['screenStart','screenMode','screenRoom'].forEach(id => document.getElementById(id).classList.add('hidden')); document.getElementById(which).classList.remove('hidden'); }
-    function uiStart(){ const pid = document.getElementById('playerIdInput').value.trim(); if(!pid) return alert("Enter your Player ID first."); myPlayerId = pid; showScreen('screenMode'); setTopStatus(`ID: ${myPlayerId}  |  choose host/join`, true); }
-    function uiBackToStart(){ showScreen('screenStart'); setTopStatus('BOOT: ready', false); }
-    function toggleSettings(){ const drawer = document.getElementById('settingsDrawer'); drawer.classList.toggle('active'); if(!drawer.classList.contains('active')){ document.getElementById('cropPanel').classList.remove('active'); document.getElementById('cropOverlay').style.display = 'none'; document.getElementById('alignPanel').classList.remove('active'); } }
-    function toggleDiceTray(){ document.getElementById('diceDrawer').classList.toggle('active'); }
-    function setStatus(msg) { const el = document.getElementById('sendStatus'); el.style.display = msg ? 'block' : 'none'; el.innerText = msg || ''; }
+    function uiStart(){
+      const pid = document.getElementById('playerIdInput').value.trim();
+      if(!pid) return alert("Enter your Player ID first.");
+      myPlayerId = pid;
+      showScreen('screenMode');
+      setTopStatus(`ID: ${myPlayerId}  |  choose host/join`, true);
+    }
+    function uiBackToStart(){
+      showScreen('screenStart');
+      setTopStatus('BOOT: ready', false);
+    }
 
+    function toggleSettings(){
+      const drawer = document.getElementById('settingsDrawer');
+      drawer.classList.toggle('active');
+    }
+
+    function toggleDiceTray(){
+      document.getElementById('diceDrawer').classList.toggle('active');
+    }
+
+    function openSettingsPanel(which){
+      // Hide all subpanels
+      ['panelGrid','panelCrop','panelAlign'].forEach(id => document.getElementById(id).classList.remove('active'));
+      if (which === 'grid') document.getElementById('panelGrid').classList.add('active');
+      if (which === 'crop') document.getElementById('panelCrop').classList.add('active');
+      if (which === 'align') document.getElementById('panelAlign').classList.add('active');
+    }
+
+    // Stepper helpers
+    function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
+    function stepNumber(id, delta){
+      const el = document.getElementById(id);
+      const min = (el.min !== "") ? parseInt(el.min, 10) : -999999;
+      const max = (el.max !== "") ? parseInt(el.max, 10) : 999999;
+      let v = parseInt(el.value, 10);
+      if (Number.isNaN(v)) v = 0;
+      v = clamp(v + delta, min, max);
+      el.value = v;
+      el.dispatchEvent(new Event('input'));
+    }
+
+    function stepFloat(id, delta){
+      const el = document.getElementById(id);
+      const min = (el.min !== "") ? parseFloat(el.min) : -999999;
+      const max = (el.max !== "") ? parseFloat(el.max) : 999999;
+      let v = parseFloat(el.value);
+      if (Number.isNaN(v)) v = 0;
+      v = clamp(v + delta, min, max);
+      // keep nice formatting
+      el.value = (Math.round(v*100)/100).toString();
+      el.dispatchEvent(new Event('input'));
+    }
+
+    // ---- Boot / Projector Mode ----
     window.onload = function() {
       const params = new URLSearchParams(window.location.search);
       if (params.get('mode') === 'projector') {
-        isProjectorMode = true; projectorRoomId = params.get('room'); projectorOwnerId = params.get('owner');
-        document.getElementById('mainInterface').style.display = 'none'; document.getElementById('app').style.display = 'none';
+        isProjectorMode = true;
+        projectorRoomId = params.get('room');
+        projectorOwnerId = params.get('owner');
+
+        document.getElementById('mainInterface').style.display = 'none';
+        document.getElementById('app').style.display = 'none';
         document.getElementById('projectorView').style.display = 'flex';
+
         updateDebug(`Projector Active\nOwner: ${projectorOwnerId}\nMode: normal`);
         updateProjectorLayout();
+
         if (projectorRoomId && projectorOwnerId) socket.emit('joinAsProjector', { roomId: projectorRoomId, ownerId: projectorOwnerId });
         return;
       }
-      loadGridPrefs(); syncGridPanelUI(); showScreen('screenStart'); setTopStatus('BOOT: ready', false);
+
+      showScreen('screenStart');
+      setTopStatus('BOOT: ready', false);
+
+      // Restore saved settings
+      loadPrefs();
+      syncGridUI();
+      syncAlignUI();
+      updateCropOverlay(); // safe no-op unless opened
     };
 
-    function toggleCropPanel(){ const panel = document.getElementById('cropPanel'); const overlay = document.getElementById('cropOverlay'); const open = !panel.classList.contains('active'); panel.classList.toggle('active', open); overlay.style.display = open ? 'block' : 'none'; if(open) updateCropOverlay(); }
-    function updateCrop() { crop.t = parseInt(document.getElementById('cropTop').value); crop.b = parseInt(document.getElementById('cropBottom').value); crop.l = parseInt(document.getElementById('cropLeft').value); crop.r = parseInt(document.getElementById('cropRight').value); updateCropOverlay(); }
-    function updateCropOverlay() { const overlay = document.getElementById('cropOverlay'); overlay.style.top = crop.t + "%"; overlay.style.bottom = crop.b + "%"; overlay.style.left = crop.l + "%"; overlay.style.right = crop.r + "%"; overlay.style.outline = "1000px solid rgba(0,0,0,0.6)"; }
-
-    function rollDice(sides, typeName) { if (!currentRoomId) return alert("Join a room first!"); const qty = parseInt(document.getElementById('diceQty').value); const size = document.getElementById('diceSize').value; const results = []; for(let i=0; i<qty; i++) results.push(Math.floor(Math.random() * sides) + 1); const diceData = { results, size, type: typeName }; renderDice(diceData, 'localDiceResults'); socket.emit('rollDice', { roomId: currentRoomId, dice: diceData, senderId: myPlayerId }); }
-    function renderDice(diceData, containerId) { const container = document.getElementById(containerId); container.innerHTML = ''; diceData.results.forEach(num => { const die = document.createElement('div'); die.className = `die-box type-${diceData.type} size-${diceData.size}`; die.innerText = num; container.appendChild(die); }); }
-
-    function updateProjectorLink() { if (!currentRoomId || !myPlayerId) return; document.getElementById('projectorLink').href = `${window.location.origin}/?mode=projector&room=${encodeURIComponent(currentRoomId)}&owner=${encodeURIComponent(myPlayerId)}`; }
-    function updateDebug(msg) { const el = document.getElementById('projectorDebug'); if(el) el.innerText = msg; }
-    function toggleFullScreen() { const d=document; const e=d.documentElement; (d.fullscreenElement ? d.exitFullscreen : e.requestFullscreen).call(d.fullscreenElement ? d : e); }
-
-    function setProjectorViewMode(mode) { if(currentRoomId) socket.emit('setProjectorViewMode', { roomId: currentRoomId, ownerId: myPlayerId, mode }); }
-    function sendGridUpdate() { if(!currentRoomId) return; socket.emit('setProjectorGrid', { roomId: currentRoomId, ownerId: myPlayerId, enabled: !!gridEnabled, width: gridW, height: gridH }); }
-    function toggleCalibrationMode() {
-      calibrationMode = !calibrationMode;
-      const btn = document.getElementById('calibBtn'); btn.classList.toggle('off', !calibrationMode); btn.textContent = calibrationMode ? "ON" : "OFF";
-      if (calibrationMode) { setStatus("Calibration ON: Projector shows YOUR camera feed."); setProjectorViewMode('calibrate'); sendGridUpdate(); }
-      else { setStatus("Calibration OFF: Projector shows opponent."); setProjectorViewMode('normal'); socket.emit('setProjectorGrid', { roomId: currentRoomId, ownerId: myPlayerId, enabled: false, width: gridW, height: gridH }); }
+    function updateProjectorLink() {
+      if (!currentRoomId || !myPlayerId) return;
+      document.getElementById('projectorLink').href =
+        `${window.location.origin}/?mode=projector&room=${encodeURIComponent(currentRoomId)}&owner=${encodeURIComponent(myPlayerId)}`;
     }
-    function toggleGrid() { gridEnabled = !gridEnabled; syncGridPanelUI(); saveGridPrefs(); if(calibrationMode) sendGridUpdate(); }
-    function onGridInput() { const wVal = parseInt(document.getElementById('gridWidthInput').value); const hVal = parseInt(document.getElementById('gridHeightInput').value); if(wVal) gridW = Math.max(10, Math.min(400, wVal)); if(hVal) gridH = Math.max(10, Math.min(400, hVal)); saveGridPrefs(); if(calibrationMode) sendGridUpdate(); }
-    function loadGridPrefs() { gridEnabled = (localStorage.getItem("wg_grid_enabled") === "true"); gridW = parseInt(localStorage.getItem("wg_grid_w") || "50"); gridH = parseInt(localStorage.getItem("wg_grid_h") || "50"); }
-    function saveGridPrefs() { localStorage.setItem("wg_grid_enabled", gridEnabled); localStorage.setItem("wg_grid_w", gridW); localStorage.setItem("wg_grid_h", gridH); }
-    function syncGridPanelUI() { const gridBtn = document.getElementById('gridToggleBtn'); gridBtn.classList.toggle('off', !gridEnabled); gridBtn.textContent = gridEnabled ? "ON" : "OFF"; document.getElementById('gridWidthInput').value = gridW; document.getElementById('gridHeightInput').value = gridH; }
 
-    function toggleFieldAlignment() { alignEnabled = !alignEnabled; const btn = document.getElementById('alignBtn'); const panel = document.getElementById('alignPanel'); btn.classList.toggle('off', !alignEnabled); btn.textContent = alignEnabled ? "ON" : "OFF"; panel.classList.toggle('active', alignEnabled); sendAlignUpdate(); }
-    function onAlignInput() { align.x = parseInt(document.getElementById('alignX').value, 10)||0; align.y = parseInt(document.getElementById('alignY').value, 10)||0; align.zoom = parseFloat(document.getElementById('alignZoom').value)||1.0; align.r = parseInt(document.getElementById('alignR').value, 10)||0; align.trapX = parseFloat(document.getElementById('alignTrapX').value)||0; align.trapY = parseFloat(document.getElementById('alignTrapY').value)||0; sendAlignUpdate(); }
-    function resetFieldAlignment() { align = { x:0, y:0, zoom:1.0, trapX:0, trapY:0, r:0 }; document.getElementById('alignX').value=0; document.getElementById('alignY').value=0; document.getElementById('alignZoom').value=1.0; document.getElementById('alignR').value=0; document.getElementById('alignTrapX').value=0; document.getElementById('alignTrapY').value=0; sendAlignUpdate(); }
-    function sendAlignUpdate() { if (!currentRoomId || !myPlayerId) return; socket.emit('setFieldAlign', { roomId: currentRoomId, ownerId: myPlayerId, enabled: !!alignEnabled, x:align.x, y:align.y, zoom:align.zoom, trapX:align.trapX, trapY:align.trapY, r:align.r }); }
-    function applyProjectorAlignment() { if (!isProjectorMode) return; const img = document.getElementById('projectorImage'); if (!img) return; if (projectorViewMode !== 'normal' || !projAlignEnabled) { img.style.transform = ''; return; } img.style.transform = `translate(${projAlign.x}px, ${projAlign.y}px) scale(${projAlign.zoom}) rotate(${projAlign.r}deg) rotateY(${projAlign.trapX}deg) rotateX(${projAlign.trapY}deg)`; }
+    function updateDebug(msg){
+      const el = document.getElementById('projectorDebug');
+      if(el) el.innerText = msg;
+    }
 
-    // ---------- Camera & sending ----------
-    function startCamera() {
-      if (cameraStream) {
-        const v = document.getElementById('videoPreview'); v.style.display = 'block';
-        if (!sendIntervalId && !sendArmTimeoutId) {
-          if (amIHost) document.getElementById('startBtn').classList.remove('hidden');
-        } else {
-          if (amIHost) { document.getElementById('startBtn').classList.add('hidden'); document.getElementById('stopBtn').classList.remove('hidden'); }
-        }
+    function toggleFullScreen(){
+      const d=document; const e=d.documentElement;
+      (d.fullscreenElement ? d.exitFullscreen : e.requestFullscreen).call(d.fullscreenElement ? d : e);
+    }
+
+    // ---- Host/Join ----
+    function hostGame(){
+      const name = document.getElementById('gameName').value.trim();
+      const password = document.getElementById('gamePass').value; // allow spaces
+      if (!myPlayerId) return alert("Enter your Player ID.");
+      if (!name) return alert("Enter a Room Name.");
+      socket.emit('hostGame', { name, playerId: myPlayerId, password });
+    }
+
+    function joinRoomFromList(roomId, hasPassword){
+      if (!myPlayerId) return alert("Enter your Player ID.");
+      let passwordAttempt = "";
+      if (hasPassword) {
+        passwordAttempt = prompt("This room is password protected. Enter password:");
+        if (passwordAttempt === null) return; // user cancelled
+      }
+      socket.emit('joinGame', { roomId, playerId: myPlayerId, passwordAttempt });
+    }
+
+    function leaveGame(){
+      const roomId = currentRoomId;
+      goToLobbyLocal();
+      if (roomId) socket.emit('leaveGame', roomId);
+    }
+
+    // ---- Room list rendering ----
+    socket.on('updateGameList', (roomsObj) => {
+      const l = document.getElementById('gameList');
+      l.innerHTML = '';
+      const rooms = Object.values(roomsObj || {});
+      if (rooms.length === 0) {
+        l.innerHTML = `<li><span class="dim">No rooms found</span><span class="mono small dim">...</span></li>`;
         return;
       }
-      navigator.mediaDevices.getUserMedia({ video: { width: { ideal: OUT_W }, height: { ideal: OUT_H } }, audio: false })
-      .then(s => {
-        cameraStream = s; const v = document.getElementById('videoPreview'); v.srcObject = s; v.style.display = 'block';
-        if (!sendIntervalId && !sendArmTimeoutId) {
-          if (amIHost) { document.getElementById('startBtn').classList.remove('hidden'); }
-          else { setStatus("Camera ready. Waiting for Host to start..."); }
-        }
-        const report = () => { if (v.videoWidth && v.videoHeight) setStatus(`Camera ready. Source: ${v.videoWidth}×${v.videoHeight}.`); };
-        v.addEventListener('loadedmetadata', report, { once: true }); v.addEventListener('canplay', report, { once: true });
-        setStatus("Camera starting…");
-      }).catch(() => alert("Camera blocked!"));
+
+      rooms.forEach(r => {
+        const li = document.createElement('li');
+        const lock = r.hasPassword ? ' 🔒' : '';
+        li.innerHTML =
+          `<b>${escapeHtml(r.name)}${lock}</b>` +
+          `<button class="primary" style="min-width:120px; flex:0 0 auto;">Join</button>`;
+        li.querySelector('button').onclick = () => joinRoomFromList(r.id, !!r.hasPassword);
+        l.appendChild(li);
+      });
+    });
+
+    // ---- Joined room ----
+    socket.on('joinedRoom', (r) => {
+      currentRoomId = r.id;
+      const players = r.players || [];
+
+      amIHost = (players[0] === myPlayerId);
+
+      showScreen('screenRoom');
+      document.getElementById('roomTitle').innerText = r.name;
+      document.getElementById('roomCode').innerText = r.id;
+      document.getElementById('playerList').innerHTML = players.map(p => `<li>👤 <span class="mono">${escapeHtml(p)}</span></li>`).join('');
+
+      setTopStatus(`ROOM: ${currentRoomId}  |  connected as ${amIHost ? 'HOST' : 'JOINER'}`, true);
+      updateProjectorLink();
+
+      // Hide start/stop until conditions met
+      document.getElementById('startBtn').classList.add('hidden');
+      document.getElementById('stopBtn').classList.add('hidden');
+
+      // push my current settings to server for my projector
+      sendGridUpdate();
+      sendAlignUpdate();
+
+      // reset ready display
+      document.getElementById('readyText').textContent = "Camera Ready: (waiting)";
+    });
+
+    socket.on('playerUpdate', (players) => {
+      document.getElementById('playerList').innerHTML = (players || []).map(p => `<li>👤 <span class="mono">${escapeHtml(p)}</span></li>`).join('');
+    });
+
+    socket.on('backToLobby', goToLobbyLocal);
+
+    function goToLobbyLocal(){
+      currentRoomId = null;
+      stopSendingLocal();
+
+      if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+      cameraStream = null;
+
+      document.getElementById('settingsDrawer').classList.remove('active');
+      document.getElementById('diceDrawer').classList.remove('active');
+
+      showScreen('screenMode');
+      setTopStatus(`ID: ${myPlayerId || "----"}  |  choose host/join`, true);
+      setStatus("");
     }
 
-    let isCapturing = false;
+    // ---- Camera Ready handshake + Host Start gating ----
+    socket.on('cameraReadyUpdate', ({ status, bothReady }) => {
+      if (!currentRoomId) return;
+
+      // status: {playerId: true/false}
+      const entries = Object.entries(status || {});
+      const line = entries.map(([pid, ready]) => `${pid}:${ready ? '✅' : '❌'}`).join('  ');
+      document.getElementById('readyText').textContent = `Camera Ready: ${line || '(waiting)'}`;
+
+      // Host-only Start button appears only when BOTH ready
+      if (amIHost && bothReady) {
+        if (!isSending) document.getElementById('startBtn').classList.remove('hidden');
+      } else {
+        document.getElementById('startBtn').classList.add('hidden');
+      }
+    });
+
+    // ---- Camera & Sending ----
+    async function startCamera(){
+      if (!currentRoomId) return alert("Join a room first.");
+
+      if (cameraStream) {
+        setStatus("Camera already open.");
+        // still report ready
+        socket.emit('cameraReady', { roomId: currentRoomId, playerId: myPlayerId, ready: true });
+        return;
+      }
+
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: OUT_W }, height: { ideal: OUT_H } },
+          audio: false
+        });
+
+        const v = document.getElementById('videoPreview');
+        v.srcObject = cameraStream;
+        v.style.display = 'block';
+
+        socket.emit('cameraReady', { roomId: currentRoomId, playerId: myPlayerId, ready: true });
+
+        const report = () => {
+          if (v.videoWidth && v.videoHeight) setStatus(`Camera ready. Source: ${v.videoWidth}×${v.videoHeight}.`);
+        };
+        v.addEventListener('loadedmetadata', report, { once: true });
+        v.addEventListener('canplay', report, { once: true });
+
+        setStatus("Camera starting…");
+      } catch (e) {
+        alert("Camera blocked!");
+      }
+    }
+
+    // White flash helper
     function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 
-    function captureAndSendFrameCore() {
+    function captureAndSendFrameCore(){
       if (!cameraStream || !currentRoomId) return;
-      const canvas = document.getElementById('canvas'); const ctx = canvas.getContext('2d', { alpha: false }); const video = document.getElementById('videoPreview');
-      const vidW = video.videoWidth; const vidH = video.videoHeight;
+
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d', { alpha:false });
+      const video = document.getElementById('videoPreview');
+
+      const vidW = video.videoWidth;
+      const vidH = video.videoHeight;
       if (!vidW || !vidH) return;
-      canvas.width = OUT_W; canvas.height = OUT_H;
-      ctx.clearRect(0, 0, canvas.width, canvas.height); 
-      const sx = (crop.l / 100) * vidW; const sy = (crop.t / 100) * vidH;
-      const sWidth = vidW - ((crop.l + crop.r) / 100) * vidW; const sHeight = vidH - ((crop.t + crop.b) / 100) * vidH;
-      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+
+      canvas.width = OUT_W;
+      canvas.height = OUT_H;
+
+      const sx = (crop.l/100) * vidW;
+      const sy = (crop.t/100) * vidH;
+      const sWidth  = vidW - ((crop.l + crop.r)/100) * vidW;
+      const sHeight = vidH - ((crop.t + crop.b)/100) * vidH;
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+
       ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
+
       socket.emit('sendImage', { roomId: currentRoomId, image: canvas.toDataURL('image/jpeg', 0.75) });
       setStatus(`Sent ${OUT_W}×${OUT_H} at ${new Date().toLocaleTimeString()}`);
     }
 
-    async function captureAndSendFrame() {
-      if (isCapturing) return; if (!cameraStream || !currentRoomId) return;
+    async function captureAndSendFrame(){
+      if (isCapturing) return;
+      if (!cameraStream || !currentRoomId) return;
+
       isCapturing = true;
       try {
+        // Flash white on MY projector tab only
         socket.emit('setProjectorBlank', { roomId: currentRoomId, ownerId: myPlayerId, blank: true });
-        await sleep(300);
+        await sleep(220); // projector response time
         captureAndSendFrameCore();
         socket.emit('setProjectorBlank', { roomId: currentRoomId, ownerId: myPlayerId, blank: false });
       } finally {
@@ -355,157 +960,372 @@
       }
     }
 
-    // THE GLOBAL TRIGGERS
-    function requestGlobalStart() {
-        if(!currentRoomId) return;
-        socket.emit('triggerGlobalStart', currentRoomId);
+    // Global triggers (host starts, joiner follows)
+    function requestGlobalStart(){
+      if (!currentRoomId) return;
+      socket.emit('triggerGlobalStart', currentRoomId);
     }
-    function requestGlobalStop() {
-        if(!currentRoomId) return;
-        socket.emit('triggerGlobalStop', currentRoomId);
+    function requestGlobalStop(){
+      if (!currentRoomId) return;
+      socket.emit('triggerGlobalStop', currentRoomId);
     }
-    socket.on('globalStartCommand', () => { startSending(); });
-    socket.on('globalStopCommand', () => { stopSending(); });
 
-    function startSending() {
+    socket.on('globalStartCommand', () => startSendingLocal());
+    socket.on('globalStopCommand', () => stopSendingLocal());
+
+    function startSendingLocal(){
       if (!cameraStream || !currentRoomId) {
-          if (amIHost) alert("Setup first!");
-          return;
+        // joiner may not have camera open yet
+        setStatus("Open camera first.");
+        return;
       }
       if (isSending || sendIntervalId || sendArmTimeoutId) return;
 
       isSending = true;
+
+      // Host shows stop button, joiner doesn't need UI controls
       if (amIHost) {
-          document.getElementById('startBtn').classList.add('hidden');
-          document.getElementById('stopBtn').classList.remove('hidden');
+        document.getElementById('startBtn').classList.add('hidden');
+        document.getElementById('stopBtn').classList.remove('hidden');
       }
 
-      // Host fires at 0s. Joiner fires at 10s.
       const d = amIHost ? 0 : STAGGER_JOIN_MS;
       setStatus(d ? `Host started loop. Snapping in ${d/1000}s...` : "Starting loop...");
 
       const video = document.getElementById('videoPreview');
       const waitForVideoReady = () => new Promise((resolve) => {
         if (video.videoWidth && video.videoHeight) return resolve();
-        const onReady = () => { video.removeEventListener('loadedmetadata', onReady); video.removeEventListener('canplay', onReady); resolve(); };
-        video.addEventListener('loadedmetadata', onReady); video.addEventListener('canplay', onReady);
+        const onReady = () => {
+          video.removeEventListener('loadedmetadata', onReady);
+          video.removeEventListener('canplay', onReady);
+          resolve();
+        };
+        video.addEventListener('loadedmetadata', onReady);
+        video.addEventListener('canplay', onReady);
         setTimeout(resolve, 2000);
       });
 
       sendArmTimeoutId = setTimeout(async () => {
         sendArmTimeoutId = null;
         await waitForVideoReady();
-        captureAndSendFrame();
+        await captureAndSendFrame();
         sendIntervalId = setInterval(captureAndSendFrame, SEND_EVERY_MS);
         setStatus(`Auto-send running (every ${SEND_EVERY_MS/1000}s).`);
       }, d);
     }
 
-    function stopSending() {
+    function stopSendingLocal(){
       if (sendArmTimeoutId) { clearTimeout(sendArmTimeoutId); sendArmTimeoutId = null; }
       if (sendIntervalId) { clearInterval(sendIntervalId); sendIntervalId = null; }
       isSending = false;
+
       if (amIHost) {
-          document.getElementById('stopBtn').classList.add('hidden');
-          document.getElementById('startBtn').classList.remove('hidden');
+        document.getElementById('stopBtn').classList.add('hidden');
+        // host start button will re-appear when both cameras ready update arrives
       }
       setStatus("Stopped.");
     }
 
-    function updateProjectorLayout() {
+    // ---- Grid (projector overlay) ----
+    function loadPrefs(){
+      // Grid
+      gridEnabled = (localStorage.getItem("wg_grid_enabled") === "true");
+      gridCols = parseInt(localStorage.getItem("wg_grid_cols") || "30", 10);
+      gridRows = parseInt(localStorage.getItem("wg_grid_rows") || "22", 10);
+      gridW = parseInt(localStorage.getItem("wg_grid_w") || "50", 10);
+      gridH = parseInt(localStorage.getItem("wg_grid_h") || "50", 10);
+
+      // Alignment
+      alignEnabled = (localStorage.getItem("wg_align_enabled") === "true");
+      align.x = parseInt(localStorage.getItem("wg_align_x") || "0", 10);
+      align.y = parseInt(localStorage.getItem("wg_align_y") || "0", 10);
+      align.zoom = parseFloat(localStorage.getItem("wg_align_zoom") || "1");
+      align.r = parseInt(localStorage.getItem("wg_align_r") || "0", 10);
+      align.trapX = parseFloat(localStorage.getItem("wg_align_trapX") || "0");
+      align.trapY = parseFloat(localStorage.getItem("wg_align_trapY") || "0");
+    }
+
+    function saveGridPrefs(){
+      localStorage.setItem("wg_grid_enabled", String(gridEnabled));
+      localStorage.setItem("wg_grid_cols", String(gridCols));
+      localStorage.setItem("wg_grid_rows", String(gridRows));
+      localStorage.setItem("wg_grid_w", String(gridW));
+      localStorage.setItem("wg_grid_h", String(gridH));
+    }
+
+    function saveAlignPrefs(){
+      localStorage.setItem("wg_align_enabled", String(alignEnabled));
+      localStorage.setItem("wg_align_x", String(align.x));
+      localStorage.setItem("wg_align_y", String(align.y));
+      localStorage.setItem("wg_align_zoom", String(align.zoom));
+      localStorage.setItem("wg_align_r", String(align.r));
+      localStorage.setItem("wg_align_trapX", String(align.trapX));
+      localStorage.setItem("wg_align_trapY", String(align.trapY));
+    }
+
+    function syncGridUI(){
+      const btn = document.getElementById('gridToggleBtn');
+      if (btn) {
+        btn.classList.toggle('off', !gridEnabled);
+        btn.textContent = gridEnabled ? "ON" : "OFF";
+      }
+      const cEl = document.getElementById('gridCols');
+      const rEl = document.getElementById('gridRows');
+      const wEl = document.getElementById('gridWidthInput');
+      const hEl = document.getElementById('gridHeightInput');
+      if (cEl) cEl.value = gridCols;
+      if (rEl) rEl.value = gridRows;
+      if (wEl) wEl.value = gridW;
+      if (hEl) hEl.value = gridH;
+    }
+
+    function toggleGrid(){
+      gridEnabled = !gridEnabled;
+      syncGridUI();
+      saveGridPrefs();
+      sendGridUpdate();
+    }
+
+    function onGridSettingsInput(){
+      gridCols = clamp(parseInt(document.getElementById('gridCols').value,10) || 30, 1, 200);
+      gridRows = clamp(parseInt(document.getElementById('gridRows').value,10) || 22, 1, 200);
+      gridW = clamp(parseInt(document.getElementById('gridWidthInput').value,10) || 50, 1, 800);
+      gridH = clamp(parseInt(document.getElementById('gridHeightInput').value,10) || 50, 1, 800);
+      saveGridPrefs();
+      sendGridUpdate();
+    }
+
+    function sendGridUpdate(){
+      if (!currentRoomId || !myPlayerId) return;
+      socket.emit('setProjectorGrid', {
+        roomId: currentRoomId,
+        ownerId: myPlayerId,
+        enabled: !!gridEnabled,
+        cols: gridCols,
+        rows: gridRows,
+        width: gridW,
+        height: gridH
+      });
+    }
+
+    function updateProjectorLayout(){
       if (!isProjectorMode) return;
-      const targetW = GRID_COLS * projGridW; const targetH = GRID_ROWS * projGridH;
+
+      const cols = projGridCols;
+      const rows = projGridRows;
+
+      const targetW = cols * projGridW;
+      const targetH = rows * projGridH;
+
       const container = document.getElementById('projectorContent');
-      container.style.width = targetW + 'px'; container.style.height = targetH + 'px';
-      const c = document.getElementById('projectorGridCanvas'); c.width = targetW; c.height = targetH;
-      const ctx = c.getContext('2d'); ctx.clearRect(0,0,targetW,targetH);
+      container.style.width = targetW + 'px';
+      container.style.height = targetH + 'px';
+
+      const c = document.getElementById('projectorGridCanvas');
+      c.width = targetW;
+      c.height = targetH;
+
+      const ctx = c.getContext('2d');
+      ctx.clearRect(0,0,targetW,targetH);
+
       if (!projGridEnabled) return;
-      c.style.display='block'; ctx.lineWidth=1; ctx.strokeStyle="white"; ctx.globalAlpha=0.6;
-      for(let x=0; x<=GRID_COLS; x++) { ctx.beginPath(); ctx.moveTo(x * projGridW, 0); ctx.lineTo(x * projGridW, targetH); ctx.stroke(); }
-      for(let y=0; y<=GRID_ROWS; y++) { ctx.beginPath(); ctx.moveTo(0, y * projGridH); ctx.lineTo(targetW, y * projGridH); ctx.stroke(); }
-      ctx.lineWidth=2; ctx.strokeStyle="#00ff00"; ctx.globalAlpha=0.8;
-      ctx.beginPath(); ctx.moveTo((GRID_COLS/2) * projGridW, 0); ctx.lineTo((GRID_COLS/2) * projGridW, targetH); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, (GRID_ROWS/2) * projGridH); ctx.lineTo(targetW, (GRID_ROWS/2) * projGridH); ctx.stroke();
-      ctx.globalAlpha=1;
+
+      c.style.display = 'block';
+
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "white";
+      ctx.globalAlpha = 0.6;
+
+      for(let x=0; x<=cols; x++){
+        const xPos = x * projGridW;
+        ctx.beginPath(); ctx.moveTo(xPos, 0); ctx.lineTo(xPos, targetH); ctx.stroke();
+      }
+      for(let y=0; y<=rows; y++){
+        const yPos = y * projGridH;
+        ctx.beginPath(); ctx.moveTo(0, yPos); ctx.lineTo(targetW, yPos); ctx.stroke();
+      }
+
+      // center lines
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#00ff00";
+      ctx.globalAlpha = 0.8;
+
+      const midX = (cols/2) * projGridW;
+      ctx.beginPath(); ctx.moveTo(midX, 0); ctx.lineTo(midX, targetH); ctx.stroke();
+
+      const midY = (rows/2) * projGridH;
+      ctx.beginPath(); ctx.moveTo(0, midY); ctx.lineTo(targetW, midY); ctx.stroke();
+
+      ctx.globalAlpha = 1;
     }
 
-    function goToLobbyLocal() {
-      currentRoomId = null; stopSending();
-      if (cameraStream) cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null;
-      ['settingsDrawer', 'diceDrawer', 'alignPanel', 'cropPanel'].forEach(id => document.getElementById(id).classList.remove('active'));
-      document.getElementById('cropOverlay').style.display = 'none';
-      showScreen('screenMode'); setTopStatus(`ID: ${myPlayerId || "----"}  |  choose host/join`, true); projGridEnabled = false;
+    // ---- Crop (outgoing only) ----
+    function updateCrop(){
+      crop.t = parseInt(document.getElementById('cropTop').value,10) || 0;
+      crop.b = parseInt(document.getElementById('cropBottom').value,10) || 0;
+      crop.l = parseInt(document.getElementById('cropLeft').value,10) || 0;
+      crop.r = parseInt(document.getElementById('cropRight').value,10) || 0;
+      updateCropOverlay();
     }
 
-    // ---------- Socket handlers ----------
-    socket.on('errorMsg', alert);
+    function updateCropOverlay(){
+      const overlay = document.getElementById('cropOverlay');
+      if (!overlay) return;
+      overlay.style.display = 'block';
+      overlay.style.top = crop.t + "%";
+      overlay.style.bottom = crop.b + "%";
+      overlay.style.left = crop.l + "%";
+      overlay.style.right = crop.r + "%";
+      overlay.style.outline = "1000px solid rgba(0,0,0,0.6)";
+      // overlay is only visible when crop panel open; we control it in openSettingsPanel
+      if (!document.getElementById('panelCrop')?.classList.contains('active')) {
+        overlay.style.display = 'none';
+      }
+    }
 
-    socket.on('projectorBlank', ({ownerId, blank}) => {
-      if(!isProjectorMode) return;
+    // ---- Field Alignment (received) ----
+    function syncAlignUI(){
+      document.getElementById('alignX').value = align.x;
+      document.getElementById('alignY').value = align.y;
+      document.getElementById('alignZoom').value = align.zoom.toFixed(2);
+      document.getElementById('alignR').value = align.r;
+      document.getElementById('alignTrapX').value = align.trapX.toFixed(1);
+      document.getElementById('alignTrapY').value = align.trapY.toFixed(1);
+    }
+
+    function onAlignSettingsInput(){
+      alignEnabled = true; // editing implies enabled
+      align.x = clamp(parseInt(document.getElementById('alignX').value,10) || 0, -2000, 2000);
+      align.y = clamp(parseInt(document.getElementById('alignY').value,10) || 0, -2000, 2000);
+      align.zoom = clamp(parseFloat(document.getElementById('alignZoom').value) || 1.0, 0.1, 5.0);
+      align.r = clamp(parseInt(document.getElementById('alignR').value,10) || 0, -180, 180);
+      align.trapX = clamp(parseFloat(document.getElementById('alignTrapX').value) || 0, -60, 60);
+      align.trapY = clamp(parseFloat(document.getElementById('alignTrapY').value) || 0, -60, 60);
+      saveAlignPrefs();
+      sendAlignUpdate();
+    }
+
+    function resetAlignment(){
+      alignEnabled = false;
+      align = { x:0, y:0, zoom:1.0, r:0, trapX:0, trapY:0 };
+      syncAlignUI();
+      saveAlignPrefs();
+      sendAlignUpdate();
+    }
+
+    function sendAlignUpdate(){
+      if (!currentRoomId || !myPlayerId) return;
+      socket.emit('setFieldAlign', {
+        roomId: currentRoomId,
+        ownerId: myPlayerId,
+        enabled: !!alignEnabled,
+        x: align.x, y: align.y,
+        zoom: align.zoom,
+        r: align.r,
+        trapX: align.trapX,
+        trapY: align.trapY
+      });
+    }
+
+    function applyProjectorAlignment(){
+      if (!isProjectorMode) return;
+      const img = document.getElementById('projectorImage');
+      if (!img) return;
+
+      if (!projAlignEnabled) { img.style.transform = ''; return; }
+
+      img.style.transform =
+        `translate(${projAlign.x}px, ${projAlign.y}px) ` +
+        `scale(${projAlign.zoom}) ` +
+        `rotate(${projAlign.r}deg) ` +
+        `rotateY(${projAlign.trapX}deg) ` +
+        `rotateX(${projAlign.trapY}deg)`;
+    }
+
+    // ---- Dice ----
+    function rollDice(sides, typeName){
+      if (!currentRoomId) return alert("Join a room first!");
+      const qty = parseInt(document.getElementById('diceQty').value,10) || 1;
+      const size = document.getElementById('diceSize').value;
+      const results = [];
+      for(let i=0;i<qty;i++) results.push(Math.floor(Math.random() * sides) + 1);
+      const diceData = { results, size, type: typeName };
+      renderDice(diceData, 'localDiceResults');
+      socket.emit('rollDice', { roomId: currentRoomId, dice: diceData, senderId: myPlayerId });
+    }
+
+    function renderDice(diceData, containerId){
+      const c = document.getElementById(containerId);
+      c.innerHTML = '';
+      diceData.results.forEach(num => {
+        const die = document.createElement('div');
+        die.className = `die-box type-${diceData.type} size-${diceData.size}`;
+        die.innerText = num;
+        c.appendChild(die);
+      });
+    }
+
+    // ---- Projector event handlers ----
+    socket.on('projectorBlank', ({ ownerId, blank }) => {
+      if (!isProjectorMode) return;
       if (ownerId !== projectorOwnerId) return;
       document.getElementById('projectorBlank').style.display = blank ? 'block' : 'none';
     });
 
-    socket.on('projectorViewMode', ({mode}) => { if(isProjectorMode) { projectorViewMode = mode; updateDebug(`Projector Active\nOwner: ${projectorOwnerId}\nMode: ${mode}`); applyProjectorAlignment(); } });
-    socket.on('projectorGrid', ({ownerId, enabled, width, height}) => { if(isProjectorMode && ownerId === projectorOwnerId) { projGridEnabled = enabled; projGridW = width || 50; projGridH = height || 50; updateProjectorLayout(); document.getElementById('projectorGridCanvas').style.display = enabled ? 'block' : 'none'; } });
-    socket.on('fieldAlign', ({ ownerId, enabled, x, y, zoom, trapX, trapY, r }) => { if (!isProjectorMode || ownerId !== projectorOwnerId) return; projAlignEnabled = !!enabled; projAlign.x = parseInt(x, 10) || 0; projAlign.y = parseInt(y, 10) || 0; projAlign.zoom = parseFloat(zoom) || 1.0; projAlign.r = parseInt(r, 10) || 0; projAlign.trapX = parseFloat(trapX) || 0; projAlign.trapY = parseFloat(trapY) || 0; applyProjectorAlignment(); });
-    
-    socket.on('receiveImage', ({image, senderId}) => {
+    socket.on('projectorGrid', ({ ownerId, enabled, cols, rows, width, height }) => {
       if (!isProjectorMode) return;
-      if (projectorViewMode === 'normal' && senderId === projectorOwnerId) return;
-      if (projectorViewMode === 'calibrate' && senderId !== projectorOwnerId) return;
+      if (ownerId !== projectorOwnerId) return;
+
+      projGridEnabled = !!enabled;
+      projGridCols = parseInt(cols,10) || 30;
+      projGridRows = parseInt(rows,10) || 22;
+      projGridW = parseInt(width,10) || 50;
+      projGridH = parseInt(height,10) || 50;
+
+      updateProjectorLayout();
+      document.getElementById('projectorGridCanvas').style.display = projGridEnabled ? 'block' : 'none';
+    });
+
+    socket.on('fieldAlign', (data) => {
+      if (!isProjectorMode) return;
+      if (data.ownerId !== projectorOwnerId) return;
+
+      projAlignEnabled = !!data.enabled;
+      projAlign.x = parseInt(data.x,10) || 0;
+      projAlign.y = parseInt(data.y,10) || 0;
+      projAlign.zoom = parseFloat(data.zoom) || 1.0;
+      projAlign.r = parseInt(data.r,10) || 0;
+      projAlign.trapX = parseFloat(data.trapX) || 0;
+      projAlign.trapY = parseFloat(data.trapY) || 0;
+
+      applyProjectorAlignment();
+    });
+
+    // Projector display: always show OPPONENT image (ignore own senderId)
+    socket.on('receiveImage', ({ image, senderId }) => {
+      if (!isProjectorMode) return;
+      if (senderId === projectorOwnerId) return; // ignore own feed
       document.getElementById('projectorImage').src = image;
       document.getElementById('fullscreenHint').style.display = 'none';
       applyProjectorAlignment();
     });
 
-    socket.on('diceRolled', ({ dice, senderId }) => { if (isProjectorMode) { const overlay = document.getElementById('projectorDiceOverlay'); overlay.style.display = 'block'; renderDice(dice, 'projDiceContainer'); setTimeout(() => { overlay.style.display = 'none'; }, 8000); } });
-
-    socket.on('updateGameList', (g) => {
-      const l = document.getElementById('gameList'); l.innerHTML = ''; const rooms = Object.values(g);
-      if(rooms.length === 0){ l.innerHTML = `<li><span class="dim">No rooms found</span><span class="mono small dim">...</span></li>`; return; }
-      rooms.forEach(r => { const li = document.createElement('li'); li.innerHTML = `<b>${escapeHtml(r.name)}</b><button class="primary" style="min-width:120px; flex:0 0 auto;" onclick="joinGame('${r.id}')">Join</button>`; l.appendChild(li); });
+    socket.on('diceRolled', ({ dice }) => {
+      if (!isProjectorMode) return;
+      const overlay = document.getElementById('projectorDiceOverlay');
+      overlay.style.display = 'block';
+      renderDice(dice, 'projDiceContainer');
+      setTimeout(() => { overlay.style.display = 'none'; }, 8000);
     });
 
-    // We reverted the server to just send the room object. No "isHost" wrapper.
-    socket.on('joinedRoom', (r) => {
-      currentRoomId = r.id;
-      
-      // We check if I am the host simply by looking at index 0
-      amIHost = (r.players[0] === myPlayerId);
+    socket.on('errorMsg', (m) => alert(m));
 
-      showScreen('screenRoom');
-      document.getElementById('roomTitle').innerText = r.name;
-      document.getElementById('roomCode').innerText = r.id;
-      document.getElementById('playerList').innerHTML = r.players.map(p => `<li>👤 <span class="mono">${escapeHtml(p)}</span></li>`).join('');
-      setTopStatus(`ROOM: ${currentRoomId}  |  connected as ${amIHost ? 'HOST' : 'JOINER'}`, true);
-
-      // Now this correctly uses currentRoomId and builds the URL!
-      updateProjectorLink();
-
-      calibrationMode = false; document.getElementById('calibBtn').classList.add('off'); document.getElementById('calibBtn').textContent = "OFF"; setProjectorViewMode('normal');
-      loadGridPrefs(); syncGridPanelUI(); sendGridUpdate();
-      document.getElementById('alignPanel').classList.toggle('active', alignEnabled); sendAlignUpdate();
-
-      // Ensure buttons are hidden for the joiner
-      if (!amIHost) {
-          document.getElementById('startBtn').style.display = 'none';
-          document.getElementById('stopBtn').style.display = 'none';
-      } else {
-          document.getElementById('startBtn').style.display = 'inline-flex';
-          // Ensure it starts with correct styling classes
-          document.getElementById('startBtn').classList.add('hidden'); 
-      }
-    });
-
-    socket.on('playerUpdate', (p) => { document.getElementById('playerList').innerHTML = p.map(u => `<li>👤 <span class="mono">${escapeHtml(u)}</span></li>`).join(''); });
-    socket.on('backToLobby', goToLobbyLocal);
-
-    function getPlayerId() { return document.getElementById('playerIdInput').value.trim(); }
-    function hostGame() { const n = document.getElementById('gameName').value.trim(); myPlayerId = getPlayerId(); if(!myPlayerId) return alert("Enter your Player ID."); if(!n) return alert("Enter a Room ID / Room Name to host."); socket.emit('hostGame', { name:n, playerId:myPlayerId }); }
-    function joinGame(id) { myPlayerId = getPlayerId(); if(!myPlayerId) return alert("Enter your Player ID."); socket.emit('joinGame', { roomId:id, playerId:myPlayerId }); }
-    function leaveGame() { const roomId = currentRoomId; goToLobbyLocal(); if (roomId) socket.emit('leaveGame', roomId); }
-    function escapeHtml(str){ return String(str).replace(/[&<>"']/g, s => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[s])); }
+    // ---- small safety ----
+    function escapeHtml(str){
+      return String(str).replace(/[&<>"']/g, s => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+      }[s]));
+    }
   </script>
 </body>
 </html>
