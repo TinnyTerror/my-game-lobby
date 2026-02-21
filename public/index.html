@@ -944,21 +944,36 @@
       setStatus(`Sent ${OUT_W}×${OUT_H} at ${new Date().toLocaleTimeString()}`);
     }
 
-    async function captureAndSendFrame(){
-      if (isCapturing) return;
-      if (!cameraStream || !currentRoomId) return;
+async function captureAndSendFrame(){
+  if (isCapturing) return;
+  if (!cameraStream || !currentRoomId) return;
 
-      isCapturing = true;
-      try {
-        // Flash white on MY projector tab only
-        socket.emit('setProjectorBlank', { roomId: currentRoomId, ownerId: myPlayerId, blank: true });
-        await sleep(220); // projector response time
-        captureAndSendFrameCore();
-        socket.emit('setProjectorBlank', { roomId: currentRoomId, ownerId: myPlayerId, blank: false });
-      } finally {
-        isCapturing = false;
-      }
-    }
+  isCapturing = true;
+
+  // Tune these if needed:
+  const FLASH_ON_MS = 450;   // 350 might be too short for some projectors
+  const POST_FLASH_MS = 60;  // tiny settle time before capture
+
+  try {
+    // Flash WHITE on MY projector tab only (requires the projector tab for myPlayerId to be open)
+    socket.emit('setProjectorBlank', { roomId: currentRoomId, ownerId: myPlayerId, blank: true });
+
+    // Let browser paint + let projector react
+    await new Promise(requestAnimationFrame);
+    await sleep(FLASH_ON_MS);
+
+    // Optional extra settle
+    await sleep(POST_FLASH_MS);
+
+    captureAndSendFrameCore();
+  } catch (err) {
+    console.error("captureAndSendFrame error:", err);
+  } finally {
+    // Always turn the blank back off (prevents getting stuck white)
+    socket.emit('setProjectorBlank', { roomId: currentRoomId, ownerId: myPlayerId, blank: false });
+    isCapturing = false;
+  }
+}
 
     // Global triggers (host starts, joiner follows)
     function requestGlobalStart(){
